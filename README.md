@@ -210,10 +210,10 @@ artifacts/
   desktop-reverse.png
   desktop-transition-five-early.png
   desktop-transition-five-late.png
-  desktop-scene-five-teacher.png
-  desktop-scene-five-meal.png
-  desktop-scene-five-visitor.png
   desktop-scene-five-overview.png
+  desktop-scene-five-push-in.png
+  desktop-scene-five-community.png
+  desktop-scene-five-finale.png
   desktop-ending.png
   desktop-content-intro.png
   desktop-content-operating-model.png
@@ -239,23 +239,26 @@ artifacts/
 주요 명령:
 
 ```powershell
-.\scripts\media\New-ZeroCostMotionEdits.ps1 -ApplySceneFive
+.\scripts\media\New-ZeroCostMotionEdits.ps1
 .\scripts\media\New-PortraitCanvases.ps1
-.\scripts\media\Invoke-MediaPipeline.ps1
+.\scripts\media\Invoke-MediaPipeline.ps1 -Force
 ```
 
-`New-ZeroCostMotionEdits.ps1`은 첫 화면 무음 반복 영상과 장면 5 최종본을 만듭니다.
-장면 5는 `assets/scene5_services.png` 원본만 고해상도 캔버스에 담고,
-전체 → 교사 → 가정 → 정문 → 전체 순서로 카메라만 이동합니다. 앱 화면이나
-한글을 새로 합성하지 않으므로 원본의 내용과 글자 픽셀이 바뀌지 않습니다.
-기존 4→5 생성 영상은 재사용하지 않고 장면 4의 실제 마지막 프레임에서 이 원본
-화면으로 이어지는 로컬 전환으로 교체합니다.
+`New-ZeroCostMotionEdits.ps1`은 첫 화면 무음 반복 영상을 로컬에서 만듭니다.
+현재 장면 5 체인은 사용자가 Higgsfield에서 내려받은 두 원본을 사용합니다.
+첫 영상은 돌쇠 모니터에서 서비스 전체 화면으로 카메라가 빠져나오고, 두 번째
+영상은 같은 전체 화면에서 교사·학생·돌봇 공동체로 부드럽게 진입합니다.
+파이프라인은 두 영상과 인접 장면을 30fps로 정규화한 뒤 실제 경계 프레임에
+8프레임씩 잠가 한글이 겹쳐 보이는 긴 크로스페이드 없이 연결합니다.
+
+`New-ZeroCostMotionEdits.ps1 -ApplySceneFive`는 예전 로컬 카메라 편집본으로
+장면 5 원본을 교체하는 복구용 옵션이므로 현재 최종본에서는 실행하지 않습니다.
 
 화면을 비우는 실험용 초안 한 장은 OpenAI 내장 이미지 편집으로 만들었지만,
 주변 한글 보존 결과가 원본보다 좋지 않아 최종본에는 사용하지 않았습니다. 해당
 프롬프트는 `generation/prompts/local/scene5_screen_cleanup.txt`에 기록했습니다.
-최종 장면과 연결 영상 제작은 로컬 FFmpeg만 사용하며 Higgsfield 작업을 제출하지
-않고 크레딧도 사용하지 않습니다.
+최종 조립은 내려받은 완성 영상을 로컬 FFmpeg로 처리하며 추가 Higgsfield 작업을
+제출하지 않고 크레딧도 사용하지 않습니다.
 
 모바일 전용 영상 생성과 master 조립은 사용자 요청으로 중단했습니다. 현재 빌드는
 데스크톱 master를 `contain`으로 재사용하며 중앙 크롭하지 않습니다. 남아 있는

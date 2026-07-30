@@ -264,10 +264,10 @@ try {
 
   report.desktop.sceneFiveBeats = [];
   for (const beat of [
-    { name: 'teacher', time: 37.2 },
-    { name: 'family', time: 38.45 },
-    { name: 'gate', time: 39.7 },
-    { name: 'overview', time: 40.7 },
+    { name: 'overview', time: 37.2 },
+    { name: 'push-in', time: 38.45 },
+    { name: 'community', time: 39.7 },
+    { name: 'finale', time: 40.7 },
   ]) {
     await scrollToProgress(desktopPage, beat.time / 44);
     report.desktop.sceneFiveBeats.push({
@@ -381,18 +381,43 @@ try {
     const draconis = document.querySelector(
       '.featured-card[data-service="draconis"]',
     );
-    const dolsoe = document.querySelector('.featured-card[data-service="dolsoe"]');
+    const secondaryCards = [
+      ...document.querySelectorAll(
+        '.featured-card[data-service="dolsoe"], .featured-card[data-service="seokam-on"], .featured-card[data-service="dolflix"]',
+      ),
+    ];
     const width = (element) => element?.getBoundingClientRect().width ?? 0;
+    const tops = secondaryCards.map((card) => card.getBoundingClientRect().top);
+    const widths = secondaryCards.map((card) => card.getBoundingClientRect().width);
     return {
       galleryItems: document.querySelectorAll('.draconis-gallery__item').length,
       draconisFullWidth: width(draconis) >= width(grid) - 2,
-      dolsoeFullWidth: width(dolsoe) >= width(grid) - 2,
+      draconisMediaCount:
+        draconis?.querySelectorAll('.featured-card__media').length ?? null,
+      secondaryCards: secondaryCards.length,
+      secondaryTopSpread: tops.length ? Math.max(...tops) - Math.min(...tops) : null,
+      secondaryWidthSpread: widths.length
+        ? Math.max(...widths) - Math.min(...widths)
+        : null,
+      secondaryMediaMaxHeight: Math.max(
+        0,
+        ...secondaryCards.map(
+          (card) =>
+            card.querySelector('.featured-card__media')?.getBoundingClientRect()
+              .height ?? 0,
+        ),
+      ),
     };
   });
   await screenshotSection(
     desktopPage,
     '.draconis-gallery',
     'desktop-content-draconis-gallery.png',
+  );
+  await screenshotSection(
+    desktopPage,
+    '.featured-card[data-service="dolsoe"]',
+    'desktop-content-featured-secondary.png',
   );
   await desktopPage.locator('.draconis-gallery__thumbnail').first().click();
   await desktopPage.keyboard.press('ArrowRight');
@@ -656,7 +681,11 @@ report.passed =
   report.desktop.content?.organizationBodyFontSize >= 15 &&
   report.desktop.featured?.galleryItems === 27 &&
   report.desktop.featured?.draconisFullWidth === true &&
-  report.desktop.featured?.dolsoeFullWidth === true &&
+  report.desktop.featured?.draconisMediaCount === 0 &&
+  report.desktop.featured?.secondaryCards === 3 &&
+  report.desktop.featured?.secondaryTopSpread <= 1 &&
+  report.desktop.featured?.secondaryWidthSpread <= 2 &&
+  report.desktop.featured?.secondaryMediaMaxHeight <= 180 &&
   report.desktop.featured?.galleryDialog?.open === 1 &&
   report.desktop.featured?.galleryDialog?.count === '2 / 27' &&
   report.desktop.featured?.galleryDialog?.portalToBody === true &&

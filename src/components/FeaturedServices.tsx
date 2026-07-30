@@ -17,35 +17,41 @@ export function FeaturedServices() {
         </header>
 
         <div className="featured-grid">
-          {featuredServices.map((service, index) => (
-            <article className="featured-card" data-service={service.id} key={service.id}>
-              <div className="featured-card__media" data-fit={service.imageFit}>
-                <img
-                  src={service.image}
-                  alt={service.imageAlt}
-                  loading="lazy"
-                />
-              </div>
-              <div className="featured-card__content">
-                <div>
-                  <span>{String(index + 1).padStart(2, '0')}</span>
-                  <p>{service.category}</p>
+          {featuredServices.map((service, index) => {
+            const isDraconis = service.id === 'draconis';
+
+            return (
+              <article className="featured-card" data-service={service.id} key={service.id}>
+                {!isDraconis && (
+                  <div className="featured-card__media" data-fit={service.imageFit}>
+                    <img
+                      src={service.image}
+                      alt={service.imageAlt}
+                      loading="lazy"
+                    />
+                  </div>
+                )}
+                <div className="featured-card__content">
+                  <div>
+                    <span>{String(index + 1).padStart(2, '0')}</span>
+                    <p>{service.category}</p>
+                  </div>
+                  <h3>{service.name}</h3>
+                  <p>{service.summary}</p>
+                  {isDraconis && <DraconisGallery />}
+                  <a
+                    href={service.url}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    aria-label={`${service.name} ${service.actionLabel}, 새 창`}
+                  >
+                    {service.actionLabel}
+                    <span aria-hidden="true">↗</span>
+                  </a>
                 </div>
-                <h3>{service.name}</h3>
-                <p>{service.summary}</p>
-                {service.id === 'draconis' && <DraconisGallery />}
-                <a
-                  href={service.url}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  aria-label={`${service.name} ${service.actionLabel}, 새 창`}
-                >
-                  {service.actionLabel}
-                  <span aria-hidden="true">↗</span>
-                </a>
-              </div>
-            </article>
-          ))}
+              </article>
+            );
+          })}
         </div>
       </div>
     </section>
