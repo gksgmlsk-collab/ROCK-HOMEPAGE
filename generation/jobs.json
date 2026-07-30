@@ -1,0 +1,178 @@
+{
+  "version": 1,
+  "project": "DOL AI LAB Scroll World",
+  "model": "seedance_2_0",
+  "configuration": {
+    "audio": false,
+    "desktop": {
+      "aspectRatio": "16:9",
+      "resolution": "1080p",
+      "mode": "std",
+      "bitrateMode": "high",
+      "sceneDurationSeconds": 5,
+      "transitionDurationSeconds": 4
+    }
+  },
+  "billing": {
+    "rule": "Submit only after the exact configuration estimates 0 credits.",
+    "useUnlimitedRequested": true,
+    "paidFallback": false,
+    "estimatedCreditsPerSubmittedJob": 0,
+    "observedBalanceBefore": 10,
+    "observedBalanceAfterSubmittedJobs": 10,
+    "chargedCreditsObserved": 0,
+    "latestVideoEstimateCredits": 45,
+    "latestVideoEstimateConfiguration": {
+      "model": "seedance_2_0",
+      "aspectRatio": "16:9",
+      "durationSeconds": 5,
+      "resolution": "1080p",
+      "mode": "std",
+      "bitrateMode": "high",
+      "unlimitedAvailable": false
+    },
+    "newPaidJobsSubmitted": 0,
+    "finalAccountCheck": {
+      "checkedAt": "2026-07-30T08:54:36Z",
+      "credits": 10,
+      "subscriptionPlan": "plus",
+      "freeTrialStatus": "active",
+      "freeTrialEndsAt": "2026-07-31T06:00:52Z",
+      "unlimitedAvailable": false
+    }
+  },
+  "localDerivatives": {
+    "chargedCreditsObserved": 0,
+    "generatedLocally": true,
+    "script": "../scripts/media/New-ZeroCostMotionEdits.ps1",
+    "introAmbientLoop": {
+      "source": "renders/desktop/scenes-motion/scene01_dol_ai_lab.mp4",
+      "output": "../public/generated/hero/dol-ai-lab-living-loop.mp4",
+      "edit": "opening motion ping-pong loop"
+    },
+    "sceneFiveOriginalArtwork": {
+      "sourceArtwork": "../assets/scene5_services.png",
+      "sourceArtworkSha256": "4E022A47BB8CE848884CEC2A67F096489C9E5ABF2AE003F8AD49019FC9610E91",
+      "publicPoster": "../public/assets/scene5_services.png",
+      "highResolutionCanvas": "renders/desktop/local-edits/scene05_services_original_canvas_hires.png",
+      "output": "renders/desktop/local-edits/scene05_services_original_camera.mp4",
+      "activeMasterSource": "renders/desktop/scenes/scene05_services.mp4",
+      "edit": "camera-only movement over the user-supplied artwork; no app overlays, regenerated text, drawtext, or semantic alteration",
+      "chargedCreditsObserved": 0
+    },
+    "transitionFourToFiveCleanArrival": {
+      "sourceStart": "../public/generated/frames/desktop/scenes/scene04_dolsoe_last.png",
+      "sourceEnd": "renders/desktop/local-edits/scene05_services_original_overview.png",
+      "output": "renders/desktop/local-edits/transition_04_to_05_original_artwork.mp4",
+      "activeMasterSource": "renders/desktop/transitions/transition_04_to_05.mp4",
+      "edit": "local crossfade from the exact scene-four endpoint to the original scene-five artwork; historic generated Korean is not reused",
+      "chargedCreditsObserved": 0
+    },
+    "screenCleanupDraft": {
+      "mode": "OpenAI built-in image generation edit",
+      "prompt": "prompts/local/scene5_screen_cleanup.txt",
+      "projectCopy": "../assets/edits/scene5_services_screen-clean-v2.png",
+      "status": "not used in final; original artwork preserved Korean more accurately",
+      "chargedHiggsfieldCreditsObserved": 0
+    }
+  },
+  "reusableElements": {
+    "femaleTeacher": "c49057b4-24aa-4adf-bae2-02e44e38d6c5",
+    "maleTeacher": "bc69f23f-6b0c-452a-8dcb-c5f3ac68151f",
+    "dolbot": "cb7155aa-88d6-4faf-89f4-63df66744b2b"
+  },
+  "desktop": {
+    "status": "active-master-source",
+    "scenes": [
+      {
+        "id": "scene01_dol_ai_lab",
+        "originalJobId": "0d94dc28-6af0-4c94-8d2f-1c8a29447e45",
+        "activeMotionJobId": "ccfd00e5-b65e-498b-bdc0-073cdd5a8879",
+        "activePrompt": "prompts/desktop/scenes-motion/scene01_dol_ai_lab.txt",
+        "chargedCreditsObserved": 0
+      },
+      {
+        "id": "scene02_draconis",
+        "originalJobId": "811adecc-63af-4e4f-84fe-09fdafa9dc55",
+        "activeMotionJobId": "3a37e129-9063-497c-b8fa-61c724e006ac",
+        "activePrompt": "prompts/desktop/scenes-motion/scene02_draconis.txt",
+        "chargedCreditsObserved": 0
+      },
+      {
+        "id": "scene03_data_map",
+        "activeJobId": "bd93f2ab-8d09-4f5b-b9e0-9ebc75528d7b",
+        "activePrompt": "prompts/desktop/scenes/scene03_data_map.txt",
+        "chargedCreditsObserved": 0
+      },
+      {
+        "id": "scene04_dolsoe",
+        "activeJobId": "31c69798-c17a-4b82-afe5-4eaabcc65906",
+        "activePrompt": "prompts/desktop/scenes/scene04_dolsoe.txt",
+        "chargedCreditsObserved": 0
+      },
+      {
+        "id": "scene05_services",
+        "archivedOriginalJobId": "c0ed7798-5ba9-492f-bf05-caeeea8a7d80",
+        "archivedMotionJobId": "38f0bdb7-4107-460e-b818-3fba269e1feb",
+        "activeSource": "renders/desktop/scenes/scene05_services.mp4",
+        "activeLocalRecipe": "../scripts/media/New-ZeroCostMotionEdits.ps1",
+        "sourceImage": "../assets/scene5_services.png",
+        "chargedCreditsObserved": 0
+      }
+    ],
+    "transitions": [
+      {
+        "id": "transition_01_to_02",
+        "jobId": "08811ffb-005c-4211-81fd-33507ac04a2b",
+        "chargedCreditsObserved": 0
+      },
+      {
+        "id": "transition_02_to_03",
+        "jobId": "38a234bf-c9e8-4caf-afee-977e7ae4bf9d",
+        "chargedCreditsObserved": 0
+      },
+      {
+        "id": "transition_03_to_04",
+        "jobId": "d1ada3e6-956c-4e26-83f4-c25fff7fc21a",
+        "chargedCreditsObserved": 0
+      },
+      {
+        "id": "transition_04_to_05",
+        "archivedJobId": "02be19de-31d0-4e16-90ec-ccc3a1fffa37",
+        "activeSource": "renders/desktop/transitions/transition_04_to_05.mp4",
+        "activeLocalRecipe": "../scripts/media/New-ZeroCostMotionEdits.ps1",
+        "chargedCreditsObserved": 0
+      }
+    ]
+  },
+  "mobile": {
+    "status": "stopped-by-user",
+    "buildMaster": false,
+    "frontendFallback": "desktop master with object-fit: contain; portrait poster canvases in stability bands",
+    "completedZeroCreditRawArchive": [
+      {
+        "id": "scene01_dol_ai_lab",
+        "jobId": "123714c0-0b93-42b9-ae42-a3e21653e205",
+        "chargedCreditsObserved": 0
+      },
+      {
+        "id": "scene02_draconis",
+        "jobId": "69e9cb71-6854-497a-a344-0ec82a8a6f24",
+        "chargedCreditsObserved": 0
+      },
+      {
+        "id": "scene03_data_map",
+        "jobId": "65c41e48-e1cd-4e86-88f2-c93d6e1aa6e9",
+        "chargedCreditsObserved": 0
+      }
+    ],
+    "neverSubmittedAfterStop": [
+      "scene04_dolsoe",
+      "scene05_services",
+      "transition_01_to_02",
+      "transition_02_to_03",
+      "transition_03_to_04",
+      "transition_04_to_05"
+    ]
+  }
+}

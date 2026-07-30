@@ -1,0 +1,35 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.DS_Store
+npm-debug.log*
+
+# Local authoring sources and generated intermediates
+/.agents/
+/LAB/
+/assets/
+/artifacts/
+/generation/portrait_start/
+/generation/qa/
+/generation/raw/
+/generation/renders/
+
+# Runtime media that is not referenced by the deployed site
+public/generated/frames/desktop/
+public/generated/scenes/
+public/generated/transitions/
+public/generated/master/_ending-desktop.mp4
+public/generated/master/dol-ai-lab-scroll.webm
+public/generated/master/media-qa.json
+public/assets/brand/
+public/assets/characters/
+public/assets/portrait/
+public/assets/scene5_services_apps-v2.png
+
+# Local environment and credential files
+.env*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx

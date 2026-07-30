@@ -1,0 +1,6 @@
+Use case: precise-object-edit
+Asset type: DOL AI LAB Scroll World scene 5 base image
+Input image 1: edit target; preserve its full composition and style.
+Primary request: clear ONLY the content inside these three digital display surfaces: (1) the large computer monitor in front of the female teacher on the left, (2) the tall floating phone beside the parent and child in the middle, and (3) the tall floating phone beside the parent and school safety guard at the gate on the right. Replace only the pixels inside each screen with a clean neutral pale-gray blank display that follows the existing bezel, perspective, lighting, and reflections.
+Constraints: preserve every person, face, pose, hand, robot, device bezel, school background, furniture, illustration style, colors, lighting, layout, and every piece of Korean text OUTSIDE the three screens exactly as in the input. Do not redraw or reinterpret the rest of the image. Keep the same 3:2 canvas and framing. Add no text, letters, symbols, UI, watermark, or logo inside the blank screens.
+Avoid: changing characters, changing any existing non-screen Korean lettering, generating replacement Korean text, adding objects, changing crop or aspect ratio.

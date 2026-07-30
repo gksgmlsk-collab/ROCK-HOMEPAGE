@@ -1,0 +1,213 @@
+{
+  "version": 3,
+  "generationIsExternalAndPotentiallyBillable": true,
+  "preferredModel": "seedance_2_0",
+  "audio": false,
+  "billingSafety": {
+    "useUnlimitedRequestedOnSubmittedJobs": true,
+    "requireExactZeroCreditEstimate": true,
+    "fallbackToPaid": false,
+    "verifiedCostCredits": 0,
+    "observedCreditBalanceBeforeGeneration": 10,
+    "observedCreditBalanceAfterSubmittedJobs": 10,
+    "observedChargedCredits": 0,
+    "finalAccountCheck": {
+      "checkedAt": "2026-07-30T08:54:36Z",
+      "subscriptionPlan": "plus",
+      "freeTrialStatus": "active",
+      "freeTrialEndsAt": "2026-07-31T06:00:52Z",
+      "unlimitedAvailable": false
+    }
+  },
+  "localFinals": {
+    "scene05_services": {
+      "mode": "original-artwork camera-only edit",
+      "recipe": "scripts/media/New-ZeroCostMotionEdits.ps1",
+      "sourceArtwork": "assets/scene5_services.png",
+      "finalArtwork": "assets/scene5_services.png",
+      "semanticAlteration": false,
+      "higgsfieldJobsSubmitted": 0,
+      "chargedCredits": 0
+    },
+    "transition_04_to_05": {
+      "mode": "local crossfade from the exact scene-four endpoint to the original scene-five artwork",
+      "recipe": "scripts/media/New-ZeroCostMotionEdits.ps1",
+      "higgsfieldJobsSubmitted": 0,
+      "chargedCredits": 0
+    },
+    "screenCleanupDraft": {
+      "prompt": "local/scene5_screen_cleanup.txt",
+      "output": "assets/edits/scene5_services_screen-clean-v2.png",
+      "active": false,
+      "reason": "the original artwork preserved surrounding Korean more accurately"
+    }
+  },
+  "desktop": {
+    "aspectRatio": "16:9",
+    "resolution": "1080p",
+    "mode": "std",
+    "bitrateMode": "high",
+    "sceneDurationSeconds": 5,
+    "transitionDurationSeconds": 4,
+    "scenes": [
+      {
+        "id": "scene01_dol_ai_lab",
+        "prompt": "desktop/scenes-motion/scene01_dol_ai_lab.txt",
+        "originalPrompt": "desktop/scenes/scene01_dol_ai_lab.txt",
+        "startImage": "assets/scene1_dol_ai_lab.png",
+        "references": [
+          "assets/characters/female_teacher_reference (1).png",
+          "assets/characters/male_teacher_reference.png",
+          "assets/characters/dolbot_reference (1).png"
+        ]
+      },
+      {
+        "id": "scene02_draconis",
+        "prompt": "desktop/scenes-motion/scene02_draconis.txt",
+        "originalPrompt": "desktop/scenes/scene02_draconis.txt",
+        "startImage": "assets/scene2_draconis.png",
+        "references": [
+          "assets/characters/dolbot_reference (1).png"
+        ]
+      },
+      {
+        "id": "scene03_data_map",
+        "prompt": "desktop/scenes/scene03_data_map.txt",
+        "startImage": "assets/scene3_data_map.png",
+        "references": []
+      },
+      {
+        "id": "scene04_dolsoe",
+        "prompt": "desktop/scenes/scene04_dolsoe.txt",
+        "startImage": "assets/scene4_awards_dolsoe.png",
+        "references": []
+      },
+      {
+        "id": "scene05_services",
+        "historicPrompt": "desktop/scenes-motion/scene05_services.txt",
+        "historicOriginalPrompt": "desktop/scenes/scene05_services.txt",
+        "startImage": "assets/scene5_services.png",
+        "finalMode": "local original-artwork camera-only edit",
+        "localRecipe": "scripts/media/New-ZeroCostMotionEdits.ps1",
+        "references": [
+          "assets/characters/female_teacher_reference (1).png",
+          "assets/characters/male_teacher_reference.png",
+          "assets/characters/dolbot_reference (1).png"
+        ]
+      }
+    ],
+    "transitions": [
+      {
+        "id": "transition_01_to_02",
+        "prompt": "desktop/transitions/transition_01_to_02.txt",
+        "startImage": "public/generated/frames/desktop/scenes/scene01_dol_ai_lab_last.png",
+        "endImage": "public/generated/frames/desktop/scenes/scene02_draconis_first.png"
+      },
+      {
+        "id": "transition_02_to_03",
+        "prompt": "desktop/transitions/transition_02_to_03.txt",
+        "startImage": "public/generated/frames/desktop/scenes/scene02_draconis_last.png",
+        "endImage": "public/generated/frames/desktop/scenes/scene03_data_map_first.png"
+      },
+      {
+        "id": "transition_03_to_04",
+        "prompt": "desktop/transitions/transition_03_to_04.txt",
+        "startImage": "public/generated/frames/desktop/scenes/scene03_data_map_last.png",
+        "endImage": "public/generated/frames/desktop/scenes/scene04_dolsoe_first.png"
+      },
+      {
+        "id": "transition_04_to_05",
+        "historicPrompt": "desktop/transitions/transition_04_to_05.txt",
+        "finalMode": "local clean arrival",
+        "localRecipe": "scripts/media/New-ZeroCostMotionEdits.ps1",
+        "startImage": "public/generated/frames/desktop/scenes/scene04_dolsoe_last.png",
+        "endImage": "public/generated/frames/desktop/scenes/scene05_services_first.png"
+      }
+    ]
+  },
+  "mobile": {
+    "status": "stopped-by-user",
+    "buildMaster": false,
+    "frontendFallback": "desktop master with object-fit contain",
+    "aspectRatio": "9:16",
+    "resolution": "1080p",
+    "mode": "std",
+    "bitrateMode": "high",
+    "sceneDurationSeconds": 5,
+    "transitionDurationSeconds": 4,
+    "requiresNativePortraitGeneration": true,
+    "scenes": [
+      {
+        "id": "scene01_dol_ai_lab",
+        "prompt": "mobile/scenes/scene01_dol_ai_lab.txt",
+        "startImage": "public/generated/frames/mobile/canvases/scene01_dol_ai_lab_canvas.png",
+        "compositionReference": "assets/scene1_dol_ai_lab.png",
+        "references": [
+          "assets/characters/female_teacher_reference (1).png",
+          "assets/characters/male_teacher_reference.png",
+          "assets/characters/dolbot_reference (1).png"
+        ]
+      },
+      {
+        "id": "scene02_draconis",
+        "prompt": "mobile/scenes/scene02_draconis.txt",
+        "startImage": "public/generated/frames/mobile/canvases/scene02_draconis_canvas.png",
+        "compositionReference": "assets/scene2_draconis.png",
+        "references": [
+          "assets/characters/dolbot_reference (1).png"
+        ]
+      },
+      {
+        "id": "scene03_data_map",
+        "prompt": "mobile/scenes/scene03_data_map.txt",
+        "startImage": "public/generated/frames/mobile/canvases/scene03_data_map_canvas.png",
+        "compositionReference": "assets/scene3_data_map.png",
+        "references": []
+      },
+      {
+        "id": "scene04_dolsoe",
+        "prompt": "mobile/scenes/scene04_dolsoe.txt",
+        "startImage": "public/generated/frames/mobile/canvases/scene04_dolsoe_canvas.png",
+        "compositionReference": "assets/scene4_awards_dolsoe.png",
+        "references": []
+      },
+      {
+        "id": "scene05_services",
+        "prompt": "mobile/scenes/scene05_services.txt",
+        "startImage": "public/generated/frames/mobile/canvases/scene05_services_canvas.png",
+        "compositionReference": "assets/scene5_services.png",
+        "references": [
+          "assets/characters/female_teacher_reference (1).png",
+          "assets/characters/male_teacher_reference.png",
+          "assets/characters/dolbot_reference (1).png"
+        ]
+      }
+    ],
+    "transitions": [
+      {
+        "id": "transition_01_to_02",
+        "prompt": "mobile/transitions/transition_01_to_02.txt",
+        "startImage": "public/generated/frames/mobile/scenes/scene01_dol_ai_lab_last.png",
+        "endImage": "public/generated/frames/mobile/scenes/scene02_draconis_first.png"
+      },
+      {
+        "id": "transition_02_to_03",
+        "prompt": "mobile/transitions/transition_02_to_03.txt",
+        "startImage": "public/generated/frames/mobile/scenes/scene02_draconis_last.png",
+        "endImage": "public/generated/frames/mobile/scenes/scene03_data_map_first.png"
+      },
+      {
+        "id": "transition_03_to_04",
+        "prompt": "mobile/transitions/transition_03_to_04.txt",
+        "startImage": "public/generated/frames/mobile/scenes/scene03_data_map_last.png",
+        "endImage": "public/generated/frames/mobile/scenes/scene04_dolsoe_first.png"
+      },
+      {
+        "id": "transition_04_to_05",
+        "prompt": "mobile/transitions/transition_04_to_05.txt",
+        "startImage": "public/generated/frames/mobile/scenes/scene04_dolsoe_last.png",
+        "endImage": "public/generated/frames/mobile/scenes/scene05_services_first.png"
+      }
+    ]
+  }
+}
