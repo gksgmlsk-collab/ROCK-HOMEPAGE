@@ -389,12 +389,62 @@ try {
     const width = (element) => element?.getBoundingClientRect().width ?? 0;
     const tops = secondaryCards.map((card) => card.getBoundingClientRect().top);
     const widths = secondaryCards.map((card) => card.getBoundingClientRect().width);
+    const presentationRect = draconis
+      ?.querySelector('.draconis-presentation')
+      ?.getBoundingClientRect();
+    const draconisContentRect = draconis
+      ?.querySelector('.featured-card__content')
+      ?.getBoundingClientRect();
     return {
       galleryItems: document.querySelectorAll('.draconis-gallery__item').length,
+      galleryTitleFontSize: Number.parseFloat(
+        getComputedStyle(
+          document.querySelector('.draconis-gallery__header h3'),
+        ).fontSize,
+      ),
       draconisFullWidth: width(draconis) >= width(grid) - 2,
       draconisMediaCount:
         draconis?.querySelectorAll('.featured-card__media').length ?? null,
+      presentationLinkCount:
+        draconis?.querySelectorAll('.draconis-presentation a[download]')
+          .length ?? null,
+      presentationHref:
+        draconis
+          ?.querySelector('.draconis-presentation a[download]')
+          ?.getAttribute('href') ?? null,
+      presentationDownload:
+        draconis
+          ?.querySelector('.draconis-presentation a[download]')
+          ?.getAttribute('download') ?? null,
+      presentationSlideImageCount:
+        draconis?.querySelectorAll('.draconis-presentation__stage > img')
+          .length ?? null,
+      presentationThumbnailCount:
+        draconis?.querySelectorAll(
+          '.draconis-presentation__thumbnails button',
+        ).length ?? null,
+      presentationCounter:
+        draconis
+          ?.querySelector('.draconis-presentation__counter')
+          ?.textContent?.trim() ?? null,
+      presentationHorizontalOverflow:
+        presentationRect && draconisContentRect
+          ? Math.max(
+              0,
+              presentationRect.right - draconisContentRect.right,
+              draconisContentRect.left - presentationRect.left,
+            )
+          : null,
+      futureVideoDisabled:
+        draconis?.querySelector(
+          '.draconis-presentation__actions .is-placeholder',
+        )?.disabled ?? null,
       secondaryCards: secondaryCards.length,
+      secondaryImageFits: secondaryCards.map(
+        (card) =>
+          getComputedStyle(card.querySelector('.featured-card__media img'))
+            .objectFit,
+      ),
       secondaryTopSpread: tops.length ? Math.max(...tops) - Math.min(...tops) : null,
       secondaryWidthSpread: widths.length
         ? Math.max(...widths) - Math.min(...widths)
@@ -411,9 +461,32 @@ try {
   });
   await screenshotSection(
     desktopPage,
+    '.draconis-presentation',
+    'desktop-content-draconis-presentation.png',
+  );
+  await screenshotSection(
+    desktopPage,
     '.draconis-gallery',
     'desktop-content-draconis-gallery.png',
   );
+  await desktopPage
+    .locator('.draconis-presentation__nav--next')
+    .click();
+  report.desktop.featured.presentationInteraction =
+    await desktopPage.evaluate(() => ({
+      counter:
+        document
+          .querySelector('.draconis-presentation__counter')
+          ?.textContent?.trim() ?? null,
+      image:
+        document
+          .querySelector('.draconis-presentation__stage > img')
+          ?.getAttribute('src') ?? null,
+      activeThumbnail:
+        document.querySelectorAll(
+          '.draconis-presentation__thumbnails button.is-active',
+        ).length,
+    }));
   await screenshotSection(
     desktopPage,
     '.featured-card[data-service="dolsoe"]',
@@ -582,6 +655,37 @@ try {
   await mobilePage.screenshot({
     path: join(outputDirectory, 'mobile-content-intro.png'),
   });
+  await mobilePage.locator('.site-header__nav a[href="#lab-featured"]').click();
+  await waitForSectionAnchor(mobilePage, '#lab-featured');
+  report.mobile.presentation = await mobilePage.evaluate(() => {
+    const presentation = document.querySelector('.draconis-presentation');
+    const stage = document.querySelector('.draconis-presentation__stage');
+    const thumbnails = document.querySelector(
+      '.draconis-presentation__thumbnails',
+    );
+    const presentationRect = presentation?.getBoundingClientRect();
+    const stageRect = stage?.getBoundingClientRect();
+    return {
+      slideCount: document.querySelectorAll(
+        '.draconis-presentation__thumbnails button',
+      ).length,
+      stageWithinPresentation:
+        presentationRect && stageRect
+          ? stageRect.left >= presentationRect.left - 1 &&
+            stageRect.right <= presentationRect.right + 1
+          : null,
+      thumbnailRailOverflow:
+        thumbnails?.scrollWidth > thumbnails?.clientWidth + 1,
+      pageOverflow:
+        document.documentElement.scrollWidth >
+        document.documentElement.clientWidth + 1,
+    };
+  });
+  await screenshotSection(
+    mobilePage,
+    '.draconis-presentation',
+    'mobile-content-draconis-presentation.png',
+  );
   await mobilePage.locator('.site-header__nav a[href="#lab-organization"]').click();
   await waitForSectionAnchor(mobilePage, '#lab-organization');
   report.mobile.organizationTop = await mobilePage
@@ -601,7 +705,10 @@ try {
   await reducedPage.goto(baseUrl, { waitUntil: 'domcontentloaded' });
   report.reducedMotion = await reducedPage.evaluate(() => ({
     h1: document.querySelector('h1')?.textContent?.trim(),
-    videoCount: document.querySelectorAll('video').length,
+    worldVideoCount: document.querySelectorAll('.scroll-world video').length,
+    presentationLinkCount: document.querySelectorAll(
+      '.draconis-presentation a[download]',
+    ).length,
     sceneCount: document.querySelectorAll('.reduced-scene').length,
     copyPanelCount: document.querySelectorAll('.reduced-scene__copy').length,
     copyPanelBackground: getComputedStyle(
@@ -680,9 +787,26 @@ report.passed =
   report.desktop.content?.organizationTitleFontSize <= 52 &&
   report.desktop.content?.organizationBodyFontSize >= 15 &&
   report.desktop.featured?.galleryItems === 27 &&
+  report.desktop.featured?.galleryTitleFontSize <= 17 &&
   report.desktop.featured?.draconisFullWidth === true &&
   report.desktop.featured?.draconisMediaCount === 0 &&
+  report.desktop.featured?.presentationLinkCount === 1 &&
+  report.desktop.featured?.presentationHref ===
+    '/assets/lab/draconis-presentation-2026-07-31.ppsm' &&
+  report.desktop.featured?.presentationDownload ===
+    'draconis-presentation(2026.07.31).ppsm' &&
+  report.desktop.featured?.presentationSlideImageCount === 1 &&
+  report.desktop.featured?.presentationThumbnailCount === 18 &&
+  report.desktop.featured?.presentationCounter === '1 / 18' &&
+  report.desktop.featured?.presentationHorizontalOverflow <= 1 &&
+  report.desktop.featured?.presentationInteraction?.counter === '2 / 18' &&
+  report.desktop.featured?.presentationInteraction?.image ===
+    '/assets/lab/draconis-presentation/slides/slide-02.jpg' &&
+  report.desktop.featured?.presentationInteraction?.activeThumbnail === 1 &&
+  report.desktop.featured?.futureVideoDisabled === true &&
   report.desktop.featured?.secondaryCards === 3 &&
+  report.desktop.featured?.secondaryImageFits?.join('|') ===
+    'cover|cover|cover' &&
   report.desktop.featured?.secondaryTopSpread <= 1 &&
   report.desktop.featured?.secondaryWidthSpread <= 2 &&
   report.desktop.featured?.secondaryMediaMaxHeight <= 180 &&
@@ -716,7 +840,12 @@ report.passed =
   report.mobile.organizationTop >= 0 &&
   report.mobile.organizationTop < 140 &&
   report.mobile.content?.horizontalOverflow === false &&
-  report.reducedMotion.videoCount === 0 &&
+  report.mobile.presentation?.slideCount === 18 &&
+  report.mobile.presentation?.stageWithinPresentation === true &&
+  report.mobile.presentation?.thumbnailRailOverflow === true &&
+  report.mobile.presentation?.pageOverflow === false &&
+  report.reducedMotion.worldVideoCount === 0 &&
+  report.reducedMotion.presentationLinkCount === 1 &&
   report.reducedMotion.sceneCount === 5 &&
   report.reducedMotion.copyPanelCount === 4 &&
   report.reducedMotion.copyPanelBackground === 'rgba(3, 15, 31, 0.76)' &&

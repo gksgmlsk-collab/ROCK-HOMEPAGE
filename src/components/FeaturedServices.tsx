@@ -1,5 +1,6 @@
 import { featuredServices } from '../data/labContent';
 import { DraconisGallery } from './DraconisGallery';
+import { DraconisPresentation } from './DraconisPresentation';
 
 export function FeaturedServices() {
   return (
@@ -38,6 +39,7 @@ export function FeaturedServices() {
                   </div>
                   <h3>{service.name}</h3>
                   <p>{service.summary}</p>
+                  {isDraconis && <DraconisPresentation />}
                   {isDraconis && <DraconisGallery />}
                   <a
                     href={service.url}

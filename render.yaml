@@ -1,6 +1,7 @@
 services:
   - type: web
     runtime: static
+    plan: free
     name: dol-ai-lab-official
     buildCommand: npm ci && npm run build
     staticPublishPath: ./dist
@@ -11,6 +12,9 @@ services:
         source: /*
         destination: /index.html
     headers:
+      - path: /assets/lab/*.ppsm
+        name: Content-Type
+        value: application/vnd.ms-powerpoint.slideshow.macroEnabled.12
       - path: /generated/*
         name: Cache-Control
         value: public, max-age=86400
