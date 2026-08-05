@@ -26,10 +26,6 @@ type LoadState = {
 type NetworkInformationLike = {
   saveData?: boolean;
   effectiveType?: string;
-  addEventListener?: (type: 'change', listener: () => void) => void;
-  removeEventListener?: (type: 'change', listener: () => void) => void;
-  addListener?: (listener: () => void) => void;
-  removeListener?: (listener: () => void) => void;
 };
 
 type NavigatorWithConnection = Navigator & {
@@ -65,29 +61,6 @@ function connectionIsConstrained(connection: NetworkInformationLike | null) {
       (connection.effectiveType &&
         CONSTRAINED_CONNECTION_TYPES.has(connection.effectiveType)),
   );
-}
-
-function subscribeToConnection(
-  connection: NetworkInformationLike,
-  listener: () => void,
-) {
-  if (
-    typeof connection.addEventListener === 'function' &&
-    typeof connection.removeEventListener === 'function'
-  ) {
-    connection.addEventListener('change', listener);
-    return () => connection.removeEventListener?.('change', listener);
-  }
-
-  if (
-    typeof connection.addListener === 'function' &&
-    typeof connection.removeListener === 'function'
-  ) {
-    connection.addListener(listener);
-    return () => connection.removeListener?.(listener);
-  }
-
-  return () => undefined;
 }
 
 function isTouchCapableDevice() {
@@ -188,7 +161,10 @@ export function useScrollVideo({
       ? false
       : window.matchMedia(PORTRAIT_SOURCE_QUERY).matches,
   );
-  const [isConstrainedConnection, setIsConstrainedConnection] = useState(() =>
+  // effectiveType can fluctuate while a large video is downloading. Choose
+  // the connection tier once per visit so that a mid-load 4G/3G estimate does
+  // not abort one master and immediately start another.
+  const [isConstrainedConnection] = useState(() =>
     connectionIsConstrained(getNetworkConnection()),
   );
   const [loadAttempt, setLoadAttempt] = useState(0);
@@ -238,16 +214,6 @@ export function useScrollVideo({
     const update = () => setUsePortraitSource(media.matches);
     update();
     return subscribeToMediaQuery(media, update);
-  }, []);
-
-  useEffect(() => {
-    const connection = getNetworkConnection();
-    if (!connection) return;
-
-    const update = () =>
-      setIsConstrainedConnection(connectionIsConstrained(connection));
-    update();
-    return subscribeToConnection(connection, update);
   }, []);
 
   useEffect(() => {
