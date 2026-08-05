@@ -31,6 +31,9 @@ export function AwardsSection() {
                   ))}
                 </h3>
                 <p className="award-card__team">{item.team}</p>
+                {item.recognition && (
+                  <p className="award-card__recognition">{item.recognition}</p>
+                )}
                 <p className="award-card__summary">{item.summary}</p>
                 <dl className="award-card__stats">
                   {item.stats.map((stat) => (

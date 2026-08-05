@@ -1349,6 +1349,7 @@
   .award-card__eyebrow,
   .award-card__badge,
   .award-card__team,
+  .award-card__recognition,
   .award-card__summary {
     margin: 0;
   }
@@ -1399,6 +1400,20 @@
     color: var(--gold-300);
     font-size: 0.76rem;
     font-weight: 690;
+  }
+
+  .award-card__recognition {
+    width: fit-content;
+    max-width: 42rem;
+    margin-top: 1rem;
+    padding: 0.68rem 0.85rem;
+    border-left: 2px solid var(--gold-300);
+    color: rgba(255, 255, 255, 0.88);
+    background: rgba(214, 173, 82, 0.09);
+    font-size: 0.78rem;
+    font-weight: 680;
+    line-height: 1.6;
+    word-break: keep-all;
   }
 
   .award-card__summary {

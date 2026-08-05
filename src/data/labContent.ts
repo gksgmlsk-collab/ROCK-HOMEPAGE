@@ -42,6 +42,7 @@ export type Award = {
   award: string;
   title: string;
   team: string;
+  recognition?: string;
   summary: string;
   image: string;
   imageAlt: string;
@@ -206,6 +207,8 @@ export const awards: Award[] = [
     award: '일반부 대상 · 교육부장관상',
     title: '반경 너머,\n도달 가능성으로',
     team: 'DATA ROCK · 조미진 · 한희나 · 박동훈',
+    recognition:
+      '범정부 공공데이터 AI활용 창업경진대회 교육부 추천 출품작(단독 1팀)',
     summary:
       '지도상의 반경이 아닌 아이의 실제 도보 흐름으로 학교 주변 녹지 접근성을 진단하고, 우선 지원이 필요한 학교를 데이터로 제시했습니다.',
     image: '/assets/lab/bangyeong-research/report-page-01.png',

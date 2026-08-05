@@ -406,6 +406,9 @@ try {
         (heading) =>
           Array.from(heading.querySelectorAll('span'), (line) => line.textContent),
       ),
+      awardRecognition: document
+        .querySelector('.award-card__recognition')
+        ?.textContent?.trim(),
       introTitleFontSize: fontSize(introTitle),
       organizationTitleFontSize: fontSize(organizationTitle),
       organizationBodyFontSize: fontSize(organizationBody),
@@ -939,6 +942,8 @@ report.passed =
     '반경 너머,|도달 가능성으로' &&
   report.desktop.content?.awardTitleLineSets?.[1]?.join('|') ===
     'AI 학교 사업 계획|법령 검토 비서,|돌쇠' &&
+  report.desktop.content?.awardRecognition ===
+    '범정부 공공데이터 AI활용 창업경진대회 교육부 추천 출품작(단독 1팀)' &&
   report.desktop.content?.introTitleFontSize <= 80 &&
   report.desktop.content?.organizationTitleFontSize <= 52 &&
   report.desktop.content?.organizationBodyFontSize >= 15 &&
