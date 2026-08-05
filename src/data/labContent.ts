@@ -219,7 +219,7 @@ export const awards: Award[] = [
       { value: '67.4%', label: '도보권 녹지 5% 미만' },
     ],
     reportUrl: 'https://lab-tq11.onrender.com/bangyeong.html',
-    serviceUrl: 'https://2026-park-analysis.vercel.app',
+    serviceUrl: 'https://park-analysis-web-production.up.railway.app/',
   },
   {
     id: 'dolsoe-award',

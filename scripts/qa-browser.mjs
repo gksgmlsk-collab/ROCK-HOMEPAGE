@@ -409,6 +409,11 @@ try {
       awardRecognition: document
         .querySelector('.award-card__recognition')
         ?.textContent?.trim(),
+      parkAnalysisServiceUrl: document
+        .querySelector(
+          '.award-card a[href="https://park-analysis-web-production.up.railway.app/"]',
+        )
+        ?.getAttribute('href'),
       introTitleFontSize: fontSize(introTitle),
       organizationTitleFontSize: fontSize(organizationTitle),
       organizationBodyFontSize: fontSize(organizationBody),
@@ -944,6 +949,8 @@ report.passed =
     'AI 학교 사업 계획|법령 검토 비서,|돌쇠' &&
   report.desktop.content?.awardRecognition ===
     '범정부 공공데이터 AI활용 창업경진대회 교육부 추천 출품작(단독 1팀)' &&
+  report.desktop.content?.parkAnalysisServiceUrl ===
+    'https://park-analysis-web-production.up.railway.app/' &&
   report.desktop.content?.introTitleFontSize <= 80 &&
   report.desktop.content?.organizationTitleFontSize <= 52 &&
   report.desktop.content?.organizationBodyFontSize >= 15 &&
