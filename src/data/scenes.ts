@@ -42,13 +42,15 @@ export type Scene = {
  */
 export const TIMELINE_DURATION = 44;
 export const ENDING_START = 41;
-export const INTRO_LOOP_VIDEO =
-  '/generated/hero/dol-ai-lab-living-loop.mp4';
+export const INTRO_LOOP_VIDEO = {
+  desktop: '/generated/hero/dol-ai-lab-living-loop.mp4',
+  mobile: '/generated/hero/dol-ai-lab-living-loop-mobile.mp4',
+} as const;
 
 export const MASTER_VIDEO = {
   desktop: ['/generated/master/dol-ai-lab-scroll.mp4'],
   mobile: [
-    '/generated/master/dol-ai-lab-scroll.mp4',
+    '/generated/master/dol-ai-lab-scroll-mobile.mp4',
   ],
 } as const;
 

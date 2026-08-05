@@ -16,6 +16,7 @@ import { useScrollVideo } from '../hooks/useScrollVideo';
 import { EndSequence } from './EndSequence';
 import { IntroAmbientVideo } from './IntroAmbientVideo';
 import { LoadingScreen } from './LoadingScreen';
+import { MotionPreferenceControl } from './MotionPreferenceControl';
 import { PosterStack } from './PosterStack';
 import { ProgressIndicator } from './ProgressIndicator';
 import { ReducedMotionExperience } from './ReducedMotionExperience';
@@ -51,6 +52,52 @@ function usePrefersReducedMotion() {
   return reduced;
 }
 
+const MOTION_OVERRIDE_KEY = 'dol-ai-lab-motion-override';
+
+function readMotionOverride() {
+  if (typeof window === 'undefined') return false;
+
+  try {
+    return window.localStorage.getItem(MOTION_OVERRIDE_KEY) === 'animated';
+  } catch {
+    return false;
+  }
+}
+
+function useMotionOverride() {
+  const [animatedOverride, setAnimatedOverride] = useState(readMotionOverride);
+
+  const enableAnimation = () => {
+    setAnimatedOverride(true);
+    try {
+      window.localStorage.setItem(MOTION_OVERRIDE_KEY, 'animated');
+    } catch {
+      // Storage can be unavailable in private or embedded browsing contexts.
+    }
+  };
+
+  const followSystemPreference = () => {
+    setAnimatedOverride(false);
+    try {
+      window.localStorage.removeItem(MOTION_OVERRIDE_KEY);
+    } catch {
+      // The in-memory choice still takes effect for this visit.
+    }
+  };
+
+  useEffect(() => {
+    document.documentElement.dataset.motionPreference = animatedOverride
+      ? 'animated'
+      : 'system';
+
+    return () => {
+      delete document.documentElement.dataset.motionPreference;
+    };
+  }, [animatedOverride]);
+
+  return { animatedOverride, enableAnimation, followSystemPreference };
+}
+
 const smoothstep = (value: number) => {
   const normalized = Math.min(1, Math.max(0, value));
   return normalized * normalized * (3 - 2 * normalized);
@@ -73,11 +120,23 @@ function getOriginalFrameOpacity(
 
 export function ScrollWorld() {
   const reducedMotion = usePrefersReducedMotion();
+  const { animatedOverride, enableAnimation, followSystemPreference } =
+    useMotionOverride();
 
-  return reducedMotion ? <ReducedMotionExperience /> : <AnimatedScrollWorld />;
+  return reducedMotion && !animatedOverride ? (
+    <ReducedMotionExperience onEnableAnimation={enableAnimation} />
+  ) : (
+    <AnimatedScrollWorld
+      onReturnToStatic={reducedMotion ? followSystemPreference : undefined}
+    />
+  );
 }
 
-function AnimatedScrollWorld() {
+type AnimatedScrollWorldProps = {
+  onReturnToStatic?: () => void;
+};
+
+function AnimatedScrollWorld({ onReturnToStatic }: AnimatedScrollWorldProps) {
   const containerRef = useRef<HTMLElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const enabledScenes = useMemo(
@@ -89,11 +148,13 @@ function AnimatedScrollWorld() {
     timelineTime,
     isMobile,
     usePortraitSource,
+    shouldUseMobileSource,
     isLoading,
     loadProgress,
     ready,
     painted,
     error,
+    retryLoad,
     scrollToTimelineTime,
   } = useScrollVideo({
     containerRef,
@@ -105,8 +166,12 @@ function AnimatedScrollWorld() {
 
   const activeScene = sceneAtTime(timelineTime);
   const videoVisible = ready && painted;
-  const introLoopOpacity = 1 - smoothstep(progress / 0.022);
-  const introLoopActive = progress < 0.055;
+  const introFallbackActive =
+    !videoVisible && timelineTime <= enabledScenes[0].endTime;
+  const introLoopOpacity = introFallbackActive
+    ? 1
+    : 1 - smoothstep(progress / 0.022);
+  const introLoopActive = introFallbackActive || progress < 0.055;
   const originalFrameOpacity = getOriginalFrameOpacity(
     timelineTime,
     activeScene,
@@ -131,6 +196,7 @@ function AnimatedScrollWorld() {
 
           <video
             ref={videoRef}
+            data-source-variant={shouldUseMobileSource ? 'mobile' : 'desktop'}
             className={[
               'world-film',
               videoVisible ? 'is-visible' : '',
@@ -164,7 +230,11 @@ function AnimatedScrollWorld() {
                 ? enabledScenes[0].mobileSourceImage
                 : enabledScenes[0].sourceImage
             }
-            src={INTRO_LOOP_VIDEO}
+            src={
+              shouldUseMobileSource
+                ? INTRO_LOOP_VIDEO.mobile
+                : INTRO_LOOP_VIDEO.desktop
+            }
           />
 
           <div className="world-vignette" aria-hidden="true" />
@@ -177,7 +247,15 @@ function AnimatedScrollWorld() {
             isLoading={isLoading}
             progress={loadProgress}
             error={error}
+            onRetry={retryLoad}
           />
+
+          {onReturnToStatic && (
+            <MotionPreferenceControl
+              mode="animated"
+              onChange={onReturnToStatic}
+            />
+          )}
 
           <ProgressIndicator
             scenes={enabledScenes}

@@ -1,8 +1,11 @@
 import { LabHomepage } from './components/LabHomepage';
 import { ScrollWorld } from './components/ScrollWorld';
 import { SiteHeader } from './components/SiteHeader';
+import { useStableHashNavigation } from './hooks/useStableHashNavigation';
 
 export default function App() {
+  useStableHashNavigation();
+
   return (
     <>
       <SiteHeader />

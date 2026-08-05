@@ -409,7 +409,7 @@
   .load-status {
     position: absolute;
     z-index: 10;
-    top: var(--safe-top);
+    top: calc(var(--site-header-height, 76px) + 0.65rem);
     left: 50%;
     display: flex;
     align-items: center;
@@ -443,6 +443,29 @@
 
   .load-status--fallback {
     color: rgba(255, 255, 255, 0.64);
+  }
+
+  .load-status__retry {
+    min-height: 2rem;
+    padding: 0.35rem 0.72rem;
+    border: 1px solid rgba(255, 255, 255, 0.48);
+    border-radius: 999px;
+    color: #071d3d;
+    background: var(--gold-300);
+    box-shadow: 0 0.35rem 1rem rgba(1, 7, 16, 0.24);
+    font-size: 0.72rem;
+    font-weight: 780;
+    letter-spacing: -0.01em;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .load-status__retry:hover {
+    background: #fff1bb;
+  }
+
+  .load-status__retry:active {
+    transform: translateY(1px);
   }
 
   @keyframes load-pulse {
@@ -791,7 +814,81 @@
   }
 
   .reduced-world {
+    position: relative;
     background: var(--navy-950);
+  }
+
+  .motion-preference {
+    position: fixed;
+    z-index: 120;
+    top: calc(var(--site-header-height, 76px) + 0.65rem);
+    right: var(--safe-right);
+    display: inline-flex;
+    min-height: 3.2rem;
+    align-items: center;
+    gap: 0.72rem;
+    padding: 0.6rem 0.92rem 0.6rem 0.66rem;
+    border: 1px solid rgba(255, 255, 255, 0.58);
+    border-radius: 999px;
+    color: #fffdf5;
+    background: rgba(3, 15, 31, 0.88);
+    box-shadow:
+      0 0.9rem 2.8rem rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(16px) saturate(1.15);
+    cursor: pointer;
+  }
+
+  .motion-preference:hover {
+    border-color: var(--gold-300);
+    background: rgba(7, 29, 61, 0.94);
+  }
+
+  .motion-preference__icon {
+    display: grid;
+    width: 2rem;
+    aspect-ratio: 1;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: 50%;
+    color: #071d3d;
+    background: var(--gold-300);
+    font-size: 0.78rem;
+    line-height: 1;
+  }
+
+  .motion-preference__copy {
+    display: grid;
+    gap: 0.16rem;
+    min-width: 0;
+    text-align: left;
+  }
+
+  .motion-preference__copy strong {
+    font-size: 0.82rem;
+    font-weight: 790;
+    letter-spacing: -0.025em;
+    line-height: 1.1;
+  }
+
+  .motion-preference__copy small {
+    color: rgba(255, 255, 255, 0.68);
+    font-size: 0.62rem;
+    font-weight: 560;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  .motion-preference--animated {
+    top: auto;
+    right: var(--safe-right);
+    bottom: var(--safe-bottom);
+    min-height: 2.65rem;
+    padding: 0.46rem 0.72rem 0.46rem 0.5rem;
+  }
+
+  .motion-preference--animated .motion-preference__icon {
+    width: 1.65rem;
   }
 
   .reduced-scene {
@@ -938,10 +1035,38 @@
     }
 
     .load-status {
-      top: calc(var(--safe-top) + 2.4rem);
+      top: calc(var(--site-header-height, 106px) + 0.55rem);
       max-width: calc(100vw - 2 * var(--safe-left));
+      flex-wrap: wrap;
+      justify-content: center;
+      white-space: normal;
+    }
+
+    .load-status__copy {
       overflow: hidden;
       text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .load-status__retry {
+      flex: 0 0 auto;
+    }
+
+    .motion-preference {
+      top: calc(var(--site-header-height, 106px) + 0.55rem);
+      right: var(--safe-right);
+      max-width: calc(100vw - var(--safe-left) - var(--safe-right));
+    }
+
+    .motion-preference__copy small {
+      max-width: min(58vw, 18rem);
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .motion-preference--animated {
+      top: auto;
+      bottom: calc(var(--safe-bottom) + 1.25rem);
     }
 
     .scene-copy {
@@ -1148,14 +1273,22 @@
 
     .brand-mark,
     .load-status {
-      top: 0.75rem;
+      top: calc(var(--site-header-height, 76px) + 0.45rem);
+    }
+
+    .motion-preference--static {
+      top: calc(var(--site-header-height, 76px) + 0.45rem);
+    }
+
+    .motion-preference__copy small {
+      display: none;
     }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
+    html:not([data-motion-preference="animated"]) *,
+    html:not([data-motion-preference="animated"]) *::before,
+    html:not([data-motion-preference="animated"]) *::after {
       scroll-behavior: auto !important;
       animation-duration: 0.001ms !important;
       animation-iteration-count: 1 !important;
@@ -1166,7 +1299,9 @@
   @media (forced-colors: active) {
     .scene-copy,
     .journey-progress,
-    .brand-mark {
+    .brand-mark,
+    .motion-preference,
+    .load-status__retry {
       forced-color-adjust: none;
       color: CanvasText;
       background: Canvas;

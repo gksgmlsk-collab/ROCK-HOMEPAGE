@@ -23,12 +23,79 @@ type LoadState = {
   activeSource: string | null;
 };
 
+type NetworkInformationLike = {
+  saveData?: boolean;
+  effectiveType?: string;
+  addEventListener?: (type: 'change', listener: () => void) => void;
+  removeEventListener?: (type: 'change', listener: () => void) => void;
+  addListener?: (listener: () => void) => void;
+  removeListener?: (listener: () => void) => void;
+};
+
+type NavigatorWithConnection = Navigator & {
+  connection?: NetworkInformationLike;
+  mozConnection?: NetworkInformationLike;
+  webkitConnection?: NetworkInformationLike;
+};
+
 const clamp = (value: number, min = 0, max = 1) =>
   Math.min(max, Math.max(min, value));
 
 const MOBILE_UI_QUERY = '(max-width: 860px), (pointer: coarse)';
 const PORTRAIT_SOURCE_QUERY =
   '(orientation: portrait) and (max-width: 1024px)';
+const CONSTRAINED_CONNECTION_TYPES = new Set(['slow-2g', '2g', '3g']);
+const PAINT_CONFIRM_TIMEOUT_MS = 2400;
+
+function getNetworkConnection() {
+  if (typeof navigator === 'undefined') return null;
+  const networkNavigator = navigator as NavigatorWithConnection;
+  return (
+    networkNavigator.connection ??
+    networkNavigator.mozConnection ??
+    networkNavigator.webkitConnection ??
+    null
+  );
+}
+
+function connectionIsConstrained(connection: NetworkInformationLike | null) {
+  if (!connection) return false;
+  return Boolean(
+    connection.saveData ||
+      (connection.effectiveType &&
+        CONSTRAINED_CONNECTION_TYPES.has(connection.effectiveType)),
+  );
+}
+
+function subscribeToConnection(
+  connection: NetworkInformationLike,
+  listener: () => void,
+) {
+  if (
+    typeof connection.addEventListener === 'function' &&
+    typeof connection.removeEventListener === 'function'
+  ) {
+    connection.addEventListener('change', listener);
+    return () => connection.removeEventListener?.('change', listener);
+  }
+
+  if (
+    typeof connection.addListener === 'function' &&
+    typeof connection.removeListener === 'function'
+  ) {
+    connection.addListener(listener);
+    return () => connection.removeListener?.(listener);
+  }
+
+  return () => undefined;
+}
+
+function isTouchCapableDevice() {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return false;
+  }
+  return navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
+}
 
 function subscribeToMediaQuery(
   media: MediaQueryList,
@@ -121,6 +188,10 @@ export function useScrollVideo({
       ? false
       : window.matchMedia(PORTRAIT_SOURCE_QUERY).matches,
   );
+  const [isConstrainedConnection, setIsConstrainedConnection] = useState(() =>
+    connectionIsConstrained(getNetworkConnection()),
+  );
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [loadState, setLoadState] = useState<LoadState>({
     isLoading: true,
     loadProgress: 0,
@@ -143,6 +214,17 @@ export function useScrollVideo({
   });
   const paintedScheduledRef = useRef(false);
   const paintCleanupRef = useRef<(() => void) | null>(null);
+  const touchCapableRef = useRef(isTouchCapableDevice());
+  const mobileSourceLockedRef = useRef(
+    touchCapableRef.current &&
+      (isMobile || usePortraitSource || isConstrainedConnection),
+  );
+
+  const shouldUseMobileSource =
+    isMobile ||
+    usePortraitSource ||
+    isConstrainedConnection ||
+    mobileSourceLockedRef.current;
 
   useEffect(() => {
     const media = window.matchMedia(MOBILE_UI_QUERY);
@@ -158,6 +240,25 @@ export function useScrollVideo({
     return subscribeToMediaQuery(media, update);
   }, []);
 
+  useEffect(() => {
+    const connection = getNetworkConnection();
+    if (!connection) return;
+
+    const update = () =>
+      setIsConstrainedConnection(connectionIsConstrained(connection));
+    update();
+    return subscribeToConnection(connection, update);
+  }, []);
+
+  useEffect(() => {
+    if (
+      touchCapableRef.current &&
+      (isMobile || usePortraitSource || isConstrainedConnection)
+    ) {
+      mobileSourceLockedRef.current = true;
+    }
+  }, [isConstrainedConnection, isMobile, usePortraitSource]);
+
   const cancelPaintTracking = useCallback(() => {
     const cleanup = paintCleanupRef.current;
     paintCleanupRef.current = null;
@@ -169,69 +270,111 @@ export function useScrollVideo({
     if (paintedScheduledRef.current) return;
     const video = videoRef.current;
     if (!video) return;
+    const trackedVideo: HTMLVideoElement = video;
 
     const expectedSource = video.currentSrc || video.src;
     let cancelled = false;
     let videoFrameCallback: number | null = null;
     let firstAnimationFrame = 0;
     let secondAnimationFrame = 0;
+    let paintTimeout = 0;
+    let frameAvailabilityQueued = false;
 
     const sourceIsCurrent = () =>
       videoRef.current === video &&
       (video.currentSrc || video.src) === expectedSource;
+    const removeAvailabilityListeners = () => {
+      video.removeEventListener('seeked', handleFrameAvailable);
+      video.removeEventListener('loadeddata', handleFrameAvailable);
+    };
+    const clearResources = () => {
+      removeAvailabilityListeners();
+      if (
+        videoFrameCallback !== null &&
+        typeof video.cancelVideoFrameCallback === 'function'
+      ) {
+        video.cancelVideoFrameCallback(videoFrameCallback);
+        videoFrameCallback = null;
+      }
+      if (firstAnimationFrame) {
+        window.cancelAnimationFrame(firstAnimationFrame);
+        firstAnimationFrame = 0;
+      }
+      if (secondAnimationFrame) {
+        window.cancelAnimationFrame(secondAnimationFrame);
+        secondAnimationFrame = 0;
+      }
+      if (paintTimeout) {
+        window.clearTimeout(paintTimeout);
+        paintTimeout = 0;
+      }
+    };
     const commitPainted = () => {
       if (cancelled || !sourceIsCurrent()) return;
+      clearResources();
       paintCleanupRef.current = null;
       paintedScheduledRef.current = false;
       setLoadState((state) => ({ ...state, painted: true }));
     };
+    const handlePaintTimeout = () => {
+      if (trackedVideo.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+        commitPainted();
+        return;
+      }
+      if (cancelled || !sourceIsCurrent()) return;
+
+      clearResources();
+      paintCleanupRef.current = null;
+      paintedScheduledRef.current = false;
+      setLoadState((state) => ({
+        ...state,
+        isLoading: false,
+        ready: false,
+        painted: false,
+        error:
+          '브라우저가 첫 영상 프레임을 표시하지 못했습니다. 다시 시도해 주세요.',
+      }));
+    };
+    function handleFrameAvailable() {
+      if (
+        frameAvailabilityQueued ||
+        trackedVideo.readyState < HTMLMediaElement.HAVE_CURRENT_DATA ||
+        trackedVideo.seeking
+      ) {
+        return;
+      }
+      frameAvailabilityQueued = true;
+      firstAnimationFrame = window.requestAnimationFrame(() => {
+        firstAnimationFrame = 0;
+        secondAnimationFrame = window.requestAnimationFrame(() => {
+          secondAnimationFrame = 0;
+          commitPainted();
+        });
+      });
+    }
 
     paintedScheduledRef.current = true;
+
+    video.addEventListener('seeked', handleFrameAvailable);
+    video.addEventListener('loadeddata', handleFrameAvailable);
 
     if (typeof video.requestVideoFrameCallback === 'function') {
       videoFrameCallback = video.requestVideoFrameCallback(() => {
         videoFrameCallback = null;
         commitPainted();
       });
-      paintCleanupRef.current = () => {
-        cancelled = true;
-        if (
-          videoFrameCallback !== null &&
-          typeof video.cancelVideoFrameCallback === 'function'
-        ) {
-          video.cancelVideoFrameCallback(videoFrameCallback);
-        }
-      };
-      return;
     }
 
-    let frameAvailabilityHandled = false;
-    const removeAvailabilityListeners = () => {
-      video.removeEventListener('seeked', handleFrameAvailable);
-      video.removeEventListener('loadeddata', handleFrameAvailable);
-    };
-    const handleFrameAvailable = () => {
-      if (
-        frameAvailabilityHandled ||
-        video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA ||
-        video.seeking
-      ) {
-        return;
-      }
-      frameAvailabilityHandled = true;
-      removeAvailabilityListeners();
-      firstAnimationFrame = window.requestAnimationFrame(() => {
-        secondAnimationFrame = window.requestAnimationFrame(commitPainted);
-      });
-    };
-
-    video.addEventListener('seeked', handleFrameAvailable);
-    video.addEventListener('loadeddata', handleFrameAvailable);
+    // Some Safari/WebView versions expose requestVideoFrameCallback but never
+    // deliver it for a paused, seek-driven video. Keep media-event fallbacks
+    // active and bound the wait so the poster cannot remain on top forever.
+    paintTimeout = window.setTimeout(
+      handlePaintTimeout,
+      PAINT_CONFIRM_TIMEOUT_MS,
+    );
     paintCleanupRef.current = () => {
       cancelled = true;
-      removeAvailabilityListeners();
-      if (firstAnimationFrame) window.cancelAnimationFrame(firstAnimationFrame);
-      if (secondAnimationFrame) window.cancelAnimationFrame(secondAnimationFrame);
+      clearResources();
     };
     handleFrameAvailable();
   }, [videoRef]);
@@ -270,6 +413,10 @@ export function useScrollVideo({
     [videoRef],
   );
 
+  const retryLoad = useCallback(() => {
+    setLoadAttempt((attempt) => attempt + 1);
+  }, []);
+
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -291,9 +438,11 @@ export function useScrollVideo({
 
     const controller = new AbortController();
     let disposed = false;
-    const candidates = (
-      usePortraitSource ? mobileSources : desktopSources
-    ).filter((url) => {
+    const preferredSources =
+      shouldUseMobileSource && mobileSources.length > 0
+        ? mobileSources
+        : desktopSources;
+    const candidates = preferredSources.filter((url) => {
       if (!url.endsWith('.webm')) return true;
       return video.canPlayType('video/webm; codecs="vp9"') !== '';
     });
@@ -398,10 +547,11 @@ export function useScrollVideo({
   }, [
     cancelPaintTracking,
     desktopSources,
+    loadAttempt,
     markPainted,
     mobileSources,
+    shouldUseMobileSource,
     timelineDuration,
-    usePortraitSource,
     videoRef,
   ]);
 
@@ -441,16 +591,42 @@ export function useScrollVideo({
       scheduleMeasure();
     };
 
-    const observer = new ResizeObserver(scheduleMeasure);
-    observer.observe(container);
+    let disposed = false;
+    let resizeObserver: ResizeObserver | null = null;
+    let mutationObserver: MutationObserver | null = null;
+    const handleContainerLoad = () => scheduleMeasure();
+
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(scheduleMeasure);
+      resizeObserver.observe(container);
+    } else {
+      // Older WebViews lack ResizeObserver. Image/media load and DOM mutation
+      // events cover the layout changes that affect the scroll travel length.
+      container.addEventListener('load', handleContainerLoad, true);
+      if (typeof MutationObserver !== 'undefined') {
+        mutationObserver = new MutationObserver(scheduleMeasure);
+        mutationObserver.observe(container, {
+          attributes: true,
+          childList: true,
+          characterData: true,
+          subtree: true,
+        });
+      }
+      void document.fonts?.ready.then(() => {
+        if (!disposed) scheduleMeasure();
+      });
+    }
     window.addEventListener('scroll', scheduleMeasure, { passive: true });
     window.addEventListener('resize', handleResize, { passive: true });
     window.addEventListener('orientationchange', handleResize, { passive: true });
     measure();
 
     return () => {
+      disposed = true;
       if (frame) window.cancelAnimationFrame(frame);
-      observer.disconnect();
+      resizeObserver?.disconnect();
+      mutationObserver?.disconnect();
+      container.removeEventListener('load', handleContainerLoad, true);
       window.removeEventListener('scroll', scheduleMeasure);
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('orientationchange', handleResize);
@@ -515,6 +691,10 @@ export function useScrollVideo({
 
     window.addEventListener('pointerdown', prime, { passive: true });
     window.addEventListener('touchstart', prime, { passive: true });
+    // Modern browsers allow muted inline playback without a gesture. Prime as
+    // soon as the fully seekable blob is ready, while keeping the gesture
+    // listeners as the iOS/WebView fallback when this attempt is rejected.
+    void prime();
     return () => {
       window.removeEventListener('pointerdown', prime);
       window.removeEventListener('touchstart', prime);
@@ -541,6 +721,9 @@ export function useScrollVideo({
     timelineTime: displayedProgress * timelineDuration,
     isMobile,
     usePortraitSource,
+    shouldUseMobileSource,
+    isConstrainedConnection,
+    retryLoad,
     scrollToTimelineTime,
     ...loadState,
   };

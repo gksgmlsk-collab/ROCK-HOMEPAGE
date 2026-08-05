@@ -23,6 +23,7 @@ const report = {
   tablet: {},
   mobile: {},
   reducedMotion: {},
+  hashNavigation: {},
   consoleErrors: [],
   pageErrors: [],
   httpErrors: [],
@@ -107,6 +108,56 @@ async function waitForSectionAnchor(page, selector) {
     },
     selector,
     { timeout: 10_000 },
+  );
+}
+
+async function waitForStableHashAnchor(page, selector) {
+  await page.waitForFunction(
+    (sectionSelector) => {
+      const section = document.querySelector(sectionSelector);
+      const header = document.querySelector('.site-header');
+      if (!(section instanceof HTMLElement) || !(header instanceof HTMLElement)) {
+        return false;
+      }
+
+      const gap =
+        section.getBoundingClientRect().top - header.getBoundingClientRect().bottom;
+      return Math.abs(gap - 16) <= 2;
+    },
+    selector,
+    { timeout: 10_000 },
+  );
+  await page.waitForTimeout(180);
+
+  return page.evaluate((sectionSelector) => {
+    const section = document.querySelector(sectionSelector);
+    const header = document.querySelector('.site-header');
+    const activeLinks = [...document.querySelectorAll('.site-header__nav a.is-active')];
+    const sectionRect = section?.getBoundingClientRect();
+    const headerRect = header?.getBoundingClientRect();
+    const activeLink = activeLinks[0];
+
+    return {
+      hash: window.location.hash,
+      scrollY: window.scrollY,
+      targetTop: sectionRect?.top,
+      headerBottom: headerRect?.bottom,
+      gap:
+        sectionRect && headerRect ? sectionRect.top - headerRect.bottom : null,
+      activeCount: activeLinks.length,
+      activeHref: activeLink?.getAttribute('href'),
+      ariaCurrent: activeLink?.getAttribute('aria-current'),
+    };
+  }, selector);
+}
+
+function hashAnchorPassed(state, expectedHash) {
+  return (
+    state?.hash === expectedHash &&
+    Math.abs(state?.gap - 16) <= 2 &&
+    state?.activeCount === 1 &&
+    state?.activeHref === expectedHash &&
+    state?.ariaCurrent === 'location'
   );
 }
 
@@ -633,7 +684,9 @@ try {
       videoFit: video ? getComputedStyle(video).objectFit : null,
       posterFit: poster ? getComputedStyle(poster).objectFit : null,
       videoClass: video?.className,
+      videoSourceVariant: video?.dataset.sourceVariant,
       introFit: intro ? getComputedStyle(intro).objectFit : null,
+      introSource: intro?.currentSrc,
       posterSource: poster?.getAttribute('src'),
       sceneButtons: document.querySelectorAll('.journey-progress button').length,
       menuLinks: document.querySelectorAll('.site-header__nav a').length,
@@ -715,11 +768,114 @@ try {
       document.querySelector('.reduced-scene__copy'),
     ).backgroundColor,
     endingCount: document.querySelectorAll('.reduced-ending').length,
+    motionControlCount: document.querySelectorAll(
+      '.motion-preference--static',
+    ).length,
+    motionControlTop: document
+      .querySelector('.motion-preference--static')
+      ?.getBoundingClientRect().top,
+    headerBottom: document.querySelector('.site-header')?.getBoundingClientRect().bottom,
   }));
+  await reducedPage.locator('.motion-preference--static').click();
+  await reducedPage.waitForFunction(
+    () =>
+      document.documentElement.dataset.motionPreference === 'animated' &&
+      document.querySelectorAll('.scroll-world video').length === 2,
+    { timeout: 10_000 },
+  );
+  await waitForMaster(reducedPage);
+  report.reducedMotion.animatedOverride = await reducedPage.evaluate(() => ({
+    motionPreference: document.documentElement.dataset.motionPreference,
+    worldVideoCount: document.querySelectorAll('.scroll-world video').length,
+    returnControlCount: document.querySelectorAll(
+      '.motion-preference--animated',
+    ).length,
+  }));
+  await reducedPage.locator('.motion-preference--animated').click();
+  await reducedPage.waitForFunction(
+    () =>
+      document.documentElement.dataset.motionPreference === 'system' &&
+      document.querySelectorAll('.reduced-scene').length === 5,
+    { timeout: 10_000 },
+  );
+  report.reducedMotion.returnedToStatic = true;
   await reducedPage.screenshot({
     path: join(outputDirectory, 'reduced-motion.png'),
   });
   await reducedContext.close();
+
+  const hashContext = await browser.newContext({
+    viewport: { width: 1440, height: 900 },
+    deviceScaleFactor: 1,
+    reducedMotion: 'reduce',
+  });
+  const hashPage = await hashContext.newPage();
+  watchPage(hashPage, 'hash-desktop');
+  await hashPage.goto(new URL('#lab-awards', `${baseUrl}/`).href, {
+    waitUntil: 'domcontentloaded',
+  });
+  report.hashNavigation.desktopDirect = await waitForStableHashAnchor(
+    hashPage,
+    '#lab-awards',
+  );
+  await hashPage.reload({ waitUntil: 'domcontentloaded' });
+  report.hashNavigation.desktopReload = await waitForStableHashAnchor(
+    hashPage,
+    '#lab-awards',
+  );
+
+  await hashPage.evaluate(() => {
+    window.location.hash = '#lab-services';
+  });
+  report.hashNavigation.hashChange = await waitForStableHashAnchor(
+    hashPage,
+    '#lab-services',
+  );
+  await hashPage.goBack();
+  report.hashNavigation.historyBack = await waitForStableHashAnchor(
+    hashPage,
+    '#lab-awards',
+  );
+  await hashPage.goForward();
+  report.hashNavigation.historyForward = await waitForStableHashAnchor(
+    hashPage,
+    '#lab-services',
+  );
+  await hashContext.close();
+
+  const hashMobileContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 1,
+    isMobile: true,
+    hasTouch: true,
+    reducedMotion: 'reduce',
+  });
+  const hashMobilePage = await hashMobileContext.newPage();
+  watchPage(hashMobilePage, 'hash-mobile');
+  await hashMobilePage.goto(
+    new URL('#lab-organization', `${baseUrl}/`).href,
+    { waitUntil: 'domcontentloaded' },
+  );
+  report.hashNavigation.mobileDirect = await waitForStableHashAnchor(
+    hashMobilePage,
+    '#lab-organization',
+  );
+  await hashMobileContext.close();
+
+  const hashAnimatedContext = await browser.newContext({
+    viewport: { width: 1440, height: 900 },
+    deviceScaleFactor: 1,
+    reducedMotion: 'no-preference',
+  });
+  const hashAnimatedPage = await hashAnimatedContext.newPage();
+  await hashAnimatedPage.goto(new URL('#lab-intro', `${baseUrl}/`).href, {
+    waitUntil: 'domcontentloaded',
+  });
+  report.hashNavigation.animatedDirect = await waitForStableHashAnchor(
+    hashAnimatedPage,
+    '#lab-intro',
+  );
+  await hashAnimatedContext.close();
 } finally {
   await browser.close();
 }
@@ -832,6 +988,10 @@ report.passed =
   report.tablet.pageOverflow === false &&
   report.tablet.titleWordBreak === 'keep-all' &&
   report.mobile.videoFit === 'contain' &&
+  report.mobile.videoSourceVariant === 'mobile' &&
+  report.mobile.introSource?.endsWith(
+    '/generated/hero/dol-ai-lab-living-loop-mobile.mp4',
+  ) &&
   report.mobile.introFit === 'contain' &&
   report.mobile.posterFit === 'contain' &&
   report.mobile.menuLinks === 5 &&
@@ -845,10 +1005,44 @@ report.passed =
   report.mobile.presentation?.thumbnailRailOverflow === true &&
   report.mobile.presentation?.pageOverflow === false &&
   report.reducedMotion.worldVideoCount === 0 &&
+  report.reducedMotion.motionControlCount === 1 &&
+  report.reducedMotion.motionControlTop >= report.reducedMotion.headerBottom &&
+  report.reducedMotion.animatedOverride?.motionPreference === 'animated' &&
+  report.reducedMotion.animatedOverride?.worldVideoCount === 2 &&
+  report.reducedMotion.animatedOverride?.returnControlCount === 1 &&
+  report.reducedMotion.returnedToStatic === true &&
   report.reducedMotion.presentationLinkCount === 1 &&
   report.reducedMotion.sceneCount === 5 &&
   report.reducedMotion.copyPanelCount === 4 &&
   report.reducedMotion.copyPanelBackground === 'rgba(3, 15, 31, 0.76)' &&
+  hashAnchorPassed(
+    report.hashNavigation.desktopDirect,
+    '#lab-awards',
+  ) &&
+  hashAnchorPassed(
+    report.hashNavigation.desktopReload,
+    '#lab-awards',
+  ) &&
+  hashAnchorPassed(
+    report.hashNavigation.hashChange,
+    '#lab-services',
+  ) &&
+  hashAnchorPassed(
+    report.hashNavigation.historyBack,
+    '#lab-awards',
+  ) &&
+  hashAnchorPassed(
+    report.hashNavigation.historyForward,
+    '#lab-services',
+  ) &&
+  hashAnchorPassed(
+    report.hashNavigation.mobileDirect,
+    '#lab-organization',
+  ) &&
+  hashAnchorPassed(
+    report.hashNavigation.animatedDirect,
+    '#lab-intro',
+  ) &&
   report.consoleErrors.length === 0 &&
   report.pageErrors.length === 0 &&
   report.httpErrors.length === 0 &&
