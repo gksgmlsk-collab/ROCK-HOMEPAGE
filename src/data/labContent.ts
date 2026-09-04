@@ -34,6 +34,7 @@ export type FeaturedService = {
   imageFit: 'cover' | 'contain';
   url: string;
   actionLabel: string;
+  recognition?: string;
 };
 
 export type Award = {
@@ -46,6 +47,8 @@ export type Award = {
   summary: string;
   image: string;
   imageAlt: string;
+  badgeImage?: string;
+  badgeImageAlt?: string;
   stats: Array<{ value: string; label: string }>;
   reportUrl: string;
   serviceUrl: string;
@@ -179,12 +182,14 @@ export const featuredServices: FeaturedService[] = [
     name: '석암 ON',
     category: '학교 통합 운영',
     summary:
-      '분산된 학교 행정과 운영 기능을 한곳에서 확인하고 처리하도록 지원하는 학교 맞춤형 통합 서비스입니다.',
+      '분산된 학교 행정과 운영 기능을 한곳에서 확인하고 처리해 반복 업무를 줄이고, 교직원이 교육에 더 집중하도록 돕는 학교 맞춤형 통합 서비스입니다.',
     image: '/assets/lab/seokam-on.png',
     imageAlt: '석암 ON 학교 통합 운영 서비스 화면',
     imageFit: 'cover',
     url: 'https://disciplined-happiness-production-ad86.up.railway.app/',
     actionLabel: '서비스 체험',
+    recognition:
+      '‘2026년 학교 행정업무 경감 및 효율화 과제 공모전’ 우수제안작품',
   },
   {
     id: 'dolflix',
@@ -213,6 +218,8 @@ export const awards: Award[] = [
       '지도상의 반경이 아닌 아이의 실제 도보 흐름으로 학교 주변 녹지 접근성을 진단하고, 우선 지원이 필요한 학교를 데이터로 제시했습니다.',
     image: '/assets/lab/bangyeong-research/report-page-01.png',
     imageAlt: '반경 너머, 도달 가능성으로 연구보고서 표지',
+    badgeImage: '/assets/lab/education-ministry-digital-badge.png',
+    badgeImageAlt: '교육부 제8회 교육 공공데이터 AI 활용대회 대상 디지털 뱃지',
     stats: [
       { value: '242교', label: '분석 대상 초등학교' },
       { value: '20종', label: '공공·행정·공간 데이터' },
@@ -272,7 +279,7 @@ export const projects: Project[] = [
     stage: '학교 적용+지속 개선',
     owner: '이남건',
     summary:
-      '분산된 학교 행정과 운영 기능을 한곳에서 확인하고 처리하도록 지원하는 통합 서비스입니다.',
+      '분산된 학교 행정과 운영 기능을 한곳에서 확인·처리해 반복 업무를 줄이는 통합 서비스로, ‘2026년 학교 행정업무 경감 및 효율화 과제 공모전’ 우수제안작품으로 선정되었습니다.',
     url: 'https://disciplined-happiness-production-ad86.up.railway.app/',
     actionLabel: '서비스 체험',
   },

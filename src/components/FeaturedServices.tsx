@@ -37,6 +37,12 @@ export function FeaturedServices() {
                     <span>{String(index + 1).padStart(2, '0')}</span>
                     <p>{service.category}</p>
                   </div>
+                  {service.recognition && (
+                    <p className="featured-card__recognition">
+                      <span>RECOGNITION</span>
+                      {service.recognition}
+                    </p>
+                  )}
                   <h3>{service.name}</h3>
                   <p>{service.summary}</p>
                   {isDraconis && <DraconisPresentation />}
