@@ -20,6 +20,7 @@ export type FeaturedService = {
   imageFit: 'cover' | 'contain';
   url: string;
   actionLabel: string;
+  recognition?: string;
 };
 
 export type Award = {
@@ -32,6 +33,8 @@ export type Award = {
   summary: string;
   image: string;
   imageAlt: string;
+  badgeImage?: string;
+  badgeImageAlt?: string;
   stats: Array<{ value: string; label: string }>;
   reportUrl: string;
   serviceUrl: string;
@@ -287,6 +290,8 @@ export const awards: Award[] = [
       '지도상의 반경이 아닌 아이의 실제 도보 흐름으로 학교 주변 녹지 접근성을 진단하고, 우선 지원이 필요한 학교를 데이터로 제시했습니다.',
     image: '/assets/lab/bangyeong-research/report-page-01.png',
     imageAlt: '반경 너머, 도달 가능성으로 연구보고서 표지',
+    badgeImage: '/assets/lab/education-ministry-digital-badge.png',
+    badgeImageAlt: '교육부 제8회 교육 공공데이터 AI 활용대회 대상 디지털 뱃지',
     stats: [
       { value: '242교', label: '분석 대상 초등학교' },
       { value: '20종', label: '공공·행정·공간 데이터' },
@@ -573,7 +578,7 @@ export const projects: Project[] = [
     audience: '교직원',
     stage: '구조 확인',
     summary:
-      '현재 교직원 업무와 학생·학부모 학교생활을 두 입구로 나누고 다양한 학교 서비스를 안내합니다. 보결관리와 정보화기기·컴퓨터 정보 관리 중심으로 정리하는 방향을 검토합니다.',
+      '현재 교직원 업무와 학생·학부모 학교생활을 두 입구로 나누고 다양한 학교 서비스를 안내합니다. 보결관리와 정보화기기·컴퓨터 정보 관리 중심으로 정리하는 방향을 검토합니다. ‘2026년 학교 행정업무 경감 및 효율화 과제 공모전’ 우수제안작품으로 선정되었습니다.',
     url: 'https://disciplined-happiness-production-ad86.up.railway.app/',
     actionLabel: '앱 열기',
   },

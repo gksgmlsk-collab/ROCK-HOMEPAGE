@@ -39,7 +39,9 @@ export function AwardsShowcase() {
           return (
             <article className="about-award award-showcase-card" data-award={award.id} key={award.id}>
               <header className="award-showcase-card__honor" aria-label={award.award}>
-                <LaurelMark />
+                {award.badgeImage && award.badgeImageAlt ? (
+                  <img className="award-showcase-card__digital-badge" src={award.badgeImage} alt={award.badgeImageAlt} loading="lazy" decoding="async" />
+                ) : <LaurelMark />}
                 <div>
                   <p className="award-showcase-card__issuer">{issuer}</p>
                   <p className="award-showcase-card__rank">{rank}</p>

@@ -67,6 +67,7 @@
 
 .award-showcase-card__honor { position: relative; display: flex; align-items: center; gap: 17px; min-height: 118px; padding: 23px 26px; background: linear-gradient(115deg, #bf914412, transparent 85%); }
 .award-showcase-card__honor > .award-laurel { width: 60px; height: 66px; flex: 0 0 auto; }
+.award-showcase-card__digital-badge { width: 76px; height: 86px; flex: 0 0 auto; object-fit: contain; filter: drop-shadow(0 5px 12px #02071166); }
 .award-showcase-card__issuer { margin: 0; color: var(--award-gold); font-size: clamp(22px, 2.2vw, 30px); font-weight: 680; letter-spacing: -.045em; line-height: 1.3; text-shadow: 0 0 30px #d7b46426; }
 .award-showcase-card__rank { margin: 7px 0 0; color: #ddd0ab; font-size: 12px; font-weight: 550; line-height: 1.65; }
 .award-showcase-card__index { position: absolute; top: 13px; right: 14px; color: #d4b16b63; font-size: 10px; font-variant-numeric: tabular-nums; letter-spacing: .08em; }
@@ -100,6 +101,7 @@
   .awards-showcase__grid { gap: 18px; }
   .award-showcase-card__honor { gap: 12px; min-height: 118px; padding: 21px 19px; }
   .award-showcase-card__honor > .award-laurel { width: 45px; height: 55px; }
+  .award-showcase-card__digital-badge { width: 60px; height: 70px; }
   .award-showcase-card__issuer { font-size: 24px; }
   .award-showcase-card__rank { font-size: 11px; }
   .award-showcase-card__body { padding: 21px 19px; }
@@ -143,6 +145,7 @@
   .awards-showcase__description { font-size: 12px; }
   .award-showcase-card__honor { gap: 12px; padding: 18px 15px; }
   .award-showcase-card__honor > .award-laurel { width: 43px; height: 55px; }
+  .award-showcase-card__digital-badge { width: 48px; height: 60px; }
   .award-showcase-card__issuer { font-size: 24px; }
   .award-showcase-card__rank { font-size: 10px; }
   .award-showcase-card__body { padding: 21px 17px; }

@@ -154,6 +154,12 @@ export function FeaturedServices() {
                         </div>
                         <div className="featured-card__content service-feature__content">
                           <p className="service-feature__eyebrow">대표 앱 <span aria-hidden="true">/</span> {service.category}</p>
+                          {service.recognition && (
+                            <p className="featured-card__recognition">
+                              <span>RECOGNITION</span>
+                              {service.recognition}
+                            </p>
+                          )}
                           <h4 id={`featured-${service.id}-title`}>{service.name}</h4>
                           <p className="service-feature__summary">{service.summary}</p>
                           <a

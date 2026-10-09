@@ -24,7 +24,17 @@ export function AwardsSection() {
               </div>
               <div className="award-card__content">
                 <p className="award-card__eyebrow">{item.eyebrow}</p>
-                <p className="award-card__badge">{item.award}</p>
+                <div className="award-card__award-line">
+                  <p className="award-card__badge">{item.award}</p>
+                  {item.badgeImage && item.badgeImageAlt && (
+                    <img
+                      className="award-card__digital-badge"
+                      src={item.badgeImage}
+                      alt={item.badgeImageAlt}
+                      loading="lazy"
+                    />
+                  )}
+                </div>
                 <h3>
                   {item.title.split('\n').map((line) => (
                     <span key={line}>{line}</span>
