@@ -1,18 +1,3 @@
-export type NavItem = {
-  label:
-    | '연구소 소개'
-    | '대표 서비스'
-    | '연구소 수상'
-    | '서비스 포트폴리오'
-    | '운영조직';
-  href:
-    | '#lab-intro'
-    | '#lab-featured'
-    | '#lab-awards'
-    | '#lab-services'
-    | '#lab-organization';
-};
-
 export type OrganizationGroup = {
   role: string;
   names: string[];
@@ -27,6 +12,7 @@ export type Department = {
 export type FeaturedService = {
   id: string;
   name: string;
+  area: ProjectFilter;
   category: string;
   summary: string;
   image: string;
@@ -53,10 +39,9 @@ export type Award = {
 
 export const projectCategories = [
   '전체',
-  '학습앱',
-  '행정앱',
-  '홍보·운영',
-  '개인 실험',
+  '학생지원',
+  '학교안전',
+  '학교행정',
 ] as const;
 
 export type ProjectCategory = (typeof projectCategories)[number];
@@ -66,20 +51,86 @@ export type Project = {
   id: string;
   name: string;
   category: ProjectFilter;
-  stage: string;
-  owner: string;
+  subgroup: string;
+  audience: string;
+  relatedTo?: string;
+  stage: '구조 확인' | '확인 전';
+  owner?: string;
   ownerNote?: string;
   summary: string;
   url: string | null;
   actionLabel: string;
 };
 
-export const primaryNavigation: NavItem[] = [
-  { label: '연구소 소개', href: '#lab-intro' },
-  { label: '대표 서비스', href: '#lab-featured' },
-  { label: '연구소 수상', href: '#lab-awards' },
-  { label: '서비스 포트폴리오', href: '#lab-services' },
-  { label: '운영조직', href: '#lab-organization' },
+export const serviceAreas: Array<{
+  id: 'student' | 'safety' | 'admin';
+  name: ProjectFilter;
+  eyebrow: string;
+  summary: string;
+  groups: Array<{ name: string; description: string }>;
+}> = [
+  {
+    id: 'student',
+    name: '학생지원',
+    eyebrow: 'LEARN & GROW',
+    summary:
+      '드라코니스를 중심으로 교과와 프로젝트에서 직접 배우고 만드는 경험, 학교생활과 학습을 꾸준히 돕는 서비스를 연결합니다.',
+    groups: [
+      {
+        name: '교과·프로젝트 학습',
+        description:
+          '드라코니스, 도시개발 프로젝트, 우리학교 모의투자, 교내 협업 보드로 탐구하고 결과물을 함께 만듭니다.',
+      },
+      {
+        name: '학생생활·학습지원',
+        description:
+          '명상, 다문화 통번역, 앱 나눔뜰, 3D 학교 공간과 드라코니스의 생활·신체활동으로 배움의 일상을 돕습니다.',
+      },
+    ],
+  },
+  {
+    id: 'safety',
+    name: '학교안전',
+    eyebrow: 'CARE & PROTECT',
+    summary:
+      '반경너머를 대표로, 교직원이 살펴보는 안전지원과 학부모·학교 방문자가 직접 이용하는 안전서비스를 구분합니다.',
+    groups: [
+      {
+        name: '교직원용 안전지원',
+        description:
+          '반경너머와 아차 우산으로 학교 주변 환경과 등하교 기상을 살펴보고, 위기학생 조기 발견·대응 방안을 검토합니다.',
+      },
+      {
+        name: '학부모·외부인용 안전서비스',
+        description:
+          '일일방문증과 안전급식 알리미에서 방문 절차와 급식·알레르기 정보를 확인합니다.',
+      },
+    ],
+  },
+  {
+    id: 'admin',
+    name: '학교행정',
+    eyebrow: 'PLAN & CONNECT',
+    summary:
+      '돌쇠와 석암 뷔페를 대표로 소개합니다. 석암 뷔페를 교직원 업무의 중심 포털로 확장해 여러 도구에 한곳에서 접근하는 구조를 지향합니다.',
+    groups: [
+      {
+        name: '교직원 업무 플랫폼',
+        description:
+          '석암 뷔페는 교육과정 설계·운영을, 돌쇠는 법령 검토를 지원하며 교직원의 판단과 실행을 돕습니다.',
+      },
+      {
+        name: '함께 연결할 업무 도구',
+        description:
+          '가정통신문 번역, 코딩·AI 사용량 관리, 배너 공방, 협의보드, 업무 지식그래프를 한곳에서 찾습니다. 석암 뷔페 안에서도 바로 접근하도록 연결하는 방향을 검토합니다.',
+      },
+      {
+        name: '핵심 운영 지원',
+        description:
+          '석암 ON은 보결관리와 정보화기기·컴퓨터 정보 관리 중심으로 정리하고, 나머지 기능은 석암 뷔페의 관련 업무 메뉴로 연결하는 방향을 검토합니다.',
+      },
+    ],
+  },
 ];
 
 export const labIntro = {
@@ -114,11 +165,11 @@ export const organization = {
     { role: '연구소장', names: ['조미진'] },
     {
       role: '부서별 팀장',
-      names: ['이창성', '이남건', '한희나', '김종섭'],
+      names: ['이창성', '이남건', '한희나', '김종섭', '김한일'],
     },
     {
       role: '연구원',
-      names: ['허수영', '박주현', '김한일', '김민재', '홍승유', '한은서'],
+      names: ['안상우', '박서영', '한은서', '이혜경', '홍승유', '석혜숙'],
     },
     {
       role: '운영지원',
@@ -153,18 +204,33 @@ export const featuredServices: FeaturedService[] = [
   {
     id: 'draconis',
     name: '드라코니스',
+    area: '학생지원',
     category: '개인 맞춤 교수·학습',
     summary:
       '드라코니스는 2022 개정 교육과정의 수학·국어·영어 학습을 게임형 모험으로 구성한 개인 맞춤 교수·학습 지원 시스템입니다. 학생은 미션을 해결하고 드래곤을 성장시키며 CLA 단계별 풀이(문제 파악 → 계산 과정 → 최종 확인)를 익히고, 어휘·독해·영어 기초 학습과 운동 활동을 한곳에서 이어갑니다. 교사는 학급·학생별 참여 현황, 개념별 성취도와 오개념, 풀이 경로를 확인해 보충 학습과 맞춤형 지도를 제공할 수 있습니다.',
-    image: '/assets/lab/draconis-learning-home.png',
-    imageAlt: '드라코니스 학습 모험 홈 화면',
+    image: '/assets/lab/draconis-world-card.png',
+    imageAlt: '여섯 드래곤과 학생 모험가들이 함께하는 드라코니스 세계관',
     imageFit: 'contain',
     url: 'https://draconis.up.railway.app/',
     actionLabel: '서비스 체험',
   },
   {
+    id: 'beyond-radius',
+    name: '반경너머',
+    area: '학교안전',
+    category: '학교 주변 환경·도보 접근성',
+    summary:
+      '학교 주변을 직선 반경과 실제 도보 도달권으로 비교하고, 공공데이터의 학교별 지표와 출처를 함께 살펴보는 교육자원 분석 도구입니다. 학교 찾기, AI 도우미, 전체 통계 등을 통해 교직원이 학교 주변 환경과 지원 우선순위를 검토하도록 돕습니다.',
+    image: '/assets/lab/beyond-radius-overview.png',
+    imageAlt: '반경너머 학교 주변 환경과 도보 접근성 분석 화면',
+    imageFit: 'cover',
+    url: 'https://park-analysis-web-production.up.railway.app/',
+    actionLabel: '서비스 열기',
+  },
+  {
     id: 'dolsoe',
     name: '돌쇠',
+    area: '학교행정',
     category: 'AI 법령 검토',
     summary:
       '학교 사업계획서를 업로드하면 관련 법령을 자동으로 찾아 준수 여부와 누락 사항을 검토하고, 근거 법령과 수정 권고를 제공하는 AI 기반 법령 검토 시스템입니다. AI는 검토를 지원하고 최종 판단은 사람이 수행합니다.',
@@ -175,32 +241,40 @@ export const featuredServices: FeaturedService[] = [
     actionLabel: '서비스 체험',
   },
   {
-    id: 'seokam-on',
-    name: '석암 ON',
-    category: '학교 통합 운영',
+    id: 'seokam-buffet',
+    name: '석암 뷔페',
+    area: '학교행정',
+    category: '교육과정 설계·교직원 업무',
     summary:
-      '분산된 학교 행정과 운영 기능을 한곳에서 확인하고 처리하도록 지원하는 학교 맞춤형 통합 서비스입니다.',
-    image: '/assets/lab/seokam-on.png',
-    imageAlt: '석암 ON 학교 통합 운영 서비스 화면',
+      '학생의 학습·활동 자료와 연구·실천 전략을 바탕으로 교육적 우선순위를 정하고, 교육과정·시수·시간표·주간 안내 작성과 학급 운영으로 연결하는 AI 지원 플랫폼입니다. 가정통신문 번역과 AI 사용량 관리 등 업무 도구를 연결하는 교직원 통합 포털로의 확장을 검토합니다.',
+    image: '/assets/lab/seokam-buffet-overview.png',
+    imageAlt: '석암 뷔페 교육과정 설계와 교사의 의사결정 과정 안내 화면',
     imageFit: 'cover',
-    url: 'https://disciplined-happiness-production-ad86.up.railway.app/',
-    actionLabel: '서비스 체험',
-  },
-  {
-    id: 'dolflix',
-    name: '돌FLIX',
-    category: '교육 콘텐츠',
-    summary:
-      '명상 및 영상 자료를 한곳에서 공유하고 활용하기 위한 콘텐츠 페이지입니다.',
-    image: '/assets/lab/dolflix-cover.png',
-    imageAlt: '명상과 교육 영상을 모은 돌FLIX 화면',
-    imageFit: 'cover',
-    url: 'https://school-meditation-production.up.railway.app/',
-    actionLabel: '데모 체험',
+    url: 'https://preview-production-5c3b.up.railway.app/admin/ops',
+    actionLabel: '서비스 열기',
   },
 ];
 
 export const awards: Award[] = [
+  {
+    id: 'dolsoe-award',
+    eyebrow: '제2회 법령데이터 활용 아이디어 공모전',
+    award: '제품·서비스 개발 부문 전국 최우수상 · 법제처장상',
+    title: 'AI 학교 사업 계획\n법령 검토 비서,\n돌쇠',
+    team: '개발 · 박동훈',
+    recognition: '왕중왕전 진출',
+    summary:
+      '학교 사업계획과 최신 법령을 연결해 준수·누락·위반 가능성과 수정 권고를 제시합니다. 전국 본선 6개 팀 가운데 1위로 선정됐습니다.',
+    image: '/assets/lab/dolsoe-research/dolsoe-page-01.png',
+    imageAlt: 'AI 학교 사업계획 법령 검토 비서 돌쇠 소개서 표지',
+    stats: [
+      { value: '약 400개', label: '초등학교 관련 법령' },
+      { value: '10개', label: '검토 분야' },
+      { value: '6 → 1위', label: '전국 본선 결과' },
+    ],
+    reportUrl: 'https://lab-tq11.onrender.com/dolsoe.html',
+    serviceUrl: 'https://schoollaw-review-production.up.railway.app/web/',
+  },
   {
     id: 'data-rock',
     eyebrow: '제8회 교육 공공데이터 AI 활용대회',
@@ -221,169 +295,312 @@ export const awards: Award[] = [
     reportUrl: 'https://lab-tq11.onrender.com/bangyeong.html',
     serviceUrl: 'https://park-analysis-web-production.up.railway.app/',
   },
-  {
-    id: 'dolsoe-award',
-    eyebrow: '제2회 법령데이터 활용 아이디어 공모전',
-    award: '제품·서비스 개발 부문 전국 최우수상 · 법제처장상',
-    title: 'AI 학교 사업 계획\n법령 검토 비서,\n돌쇠',
-    team: '개발 · 박동훈',
-    summary:
-      '학교 사업계획과 최신 법령을 연결해 준수·누락·위반 가능성과 수정 권고를 제시합니다. 전국 본선 6개 팀 가운데 1위로 선정됐습니다.',
-    image: '/assets/lab/dolsoe-research/dolsoe-page-01.png',
-    imageAlt: 'AI 학교 사업계획 법령 검토 비서 돌쇠 소개서 표지',
-    stats: [
-      { value: '약 400개', label: '초등학교 관련 법령' },
-      { value: '10개', label: '검토 분야' },
-      { value: '6 → 1위', label: '전국 본선 결과' },
-    ],
-    reportUrl: 'https://lab-tq11.onrender.com/dolsoe.html',
-    serviceUrl: 'https://schoollaw-review-production.up.railway.app/web/',
-  },
 ];
 
 export const projects: Project[] = [
   {
     id: 'draconis',
-    name: '드라코니스',
-    category: '학습앱',
-    stage: '학교 적용+지속 개선',
+    name: 'DRACONIS 드라코니스',
+    category: '학생지원',
+    subgroup: '교과·프로젝트 학습',
+    audience: '학생·교사',
+    stage: '구조 확인',
     owner: '조미진',
-    ownerNote: '영어콘텐츠 제공 박주현',
     summary:
-      '학생은 드래곤을 성장시키며 학습하고, 교사는 학생별 오개념과 학습 경로를 파악하는 게임형 개인 맞춤 교수·학습 지원 시스템입니다.',
+      '교과학습과 석암 히어로·신체활동을 연결하고, 학생 성장과 학교 참여 기록을 함께 살펴보는 개인 맞춤 교수·학습 지원 플랫폼입니다.',
     url: 'https://draconis.up.railway.app/',
-    actionLabel: '서비스 체험',
+    actionLabel: '앱 열기',
+  },
+  {
+    id: 'michuhol-city-development',
+    name: '우리 땅을 읽걷쓰AI 도시개발 프로젝트',
+    category: '학생지원',
+    subgroup: '교과·프로젝트 학습',
+    audience: '학생·교사',
+    stage: '구조 확인',
+    summary:
+      '실제 미추홀구 지도와 시설·학교·안전 자료를 읽고 예산과 생활권을 고려해 도시계획을 설계합니다. 사회의 지역 문제 탐구, 수학의 거리·예산 판단, 국어의 계획 설명을 연결하는 교과 통합 프로젝트입니다.',
+    url: 'https://projectfor5city-production-ca83.up.railway.app/',
+    actionLabel: '앱 열기',
+  },
+  {
+    id: 'school-stock',
+    name: '우리학교 모의투자',
+    category: '학생지원',
+    subgroup: '교과·프로젝트 학습',
+    audience: '학생·교사',
+    stage: '구조 확인',
+    summary:
+      '실제 돈을 사용하지 않는 학교용 모의투자 앱입니다. 공식 지연 시세를 기준으로 투자 기록을 살펴보며 경제와 금융을 학습합니다.',
+    url: 'https://classstock-production.up.railway.app/',
+    actionLabel: '앱 열기',
+  },
+  {
+    id: 'rockam-padlet',
+    name: 'ROCKAM 교내 협업 보드',
+    category: '학생지원',
+    subgroup: '교과·프로젝트 학습',
+    audience: '학생·교사',
+    stage: '구조 확인',
+    summary:
+      '교사가 학급 활동 주제와 글쓰기 규칙을 제시하고, 학생이 문제상황·의견·근거를 카드로 공유합니다. 댓글과 좋아요로 서로의 생각을 나누는 교실 활동 보드입니다.',
+    url: 'https://2026-rockam.up.railway.app/',
+    actionLabel: '앱 열기',
+  },
+  {
+    id: 'morning-walk',
+    name: '아침 걷기 신체활동 기록·관리 앱',
+    category: '학생지원',
+    subgroup: '학생생활·학습지원',
+    audience: '학생·교사',
+    relatedTo: '드라코니스 연계 기능',
+    stage: '구조 확인',
+    summary:
+      '드라코니스의 생활·운동 영역과 연결된 아침 걷기 항목입니다. 학생의 신체활동 기록과 학교생활을 함께 살펴보는 연계 기능으로 안내합니다.',
+    url: 'https://draconis.up.railway.app/',
+    actionLabel: '드라코니스 열기',
+  },
+  {
+    id: 'seokam-hero',
+    name: '석암 HERO 인성·봉사 프로젝트',
+    category: '학생지원',
+    subgroup: '학생생활·학습지원',
+    audience: '학생·교사',
+    relatedTo: '드라코니스 연계 기능',
+    stage: '구조 확인',
+    summary:
+      '드라코니스 생활 영역의 석암 히어로 메뉴와 연결된 인성·봉사 항목입니다. 학생의 학교 참여와 성장을 살펴보는 연계 기능으로 안내합니다.',
+    url: 'https://draconis.up.railway.app/',
+    actionLabel: '드라코니스 열기',
+  },
+  {
+    id: 'dolflix',
+    name: '돌Flix 명상 앱',
+    category: '학생지원',
+    subgroup: '학생생활·학습지원',
+    audience: '학생·교직원',
+    stage: '구조 확인',
+    summary:
+      '학생과 교원이 명상·이완 영상과 마음 쉬기 콘텐츠를 찾아 활용하는 페이지입니다. 학교생활 속 정서적 회복과 휴식을 돕습니다.',
+    url: 'https://school-meditation-production.up.railway.app/',
+    actionLabel: '앱 열기',
+  },
+  {
+    id: 'class-live-interpreter',
+    name: '실시간 다문화 통번역 학습지원 앱',
+    category: '학생지원',
+    subgroup: '학생생활·학습지원',
+    audience: '다문화 학생·교사',
+    stage: '구조 확인',
+    summary:
+      '교사의 수업 내용을 학생별 언어로 전달하고 핵심 학습 내용을 구조화하는 다문화 학습 지원 앱입니다. 교과 개념의 이해와 수업 후 복습을 돕습니다.',
+    url: 'https://classtalk-live-interpreter-production.up.railway.app/',
+    actionLabel: '앱 열기',
+  },
+  {
+    id: 'app-garden',
+    name: '앱 나눔뜰',
+    category: '학생지원',
+    subgroup: '학생생활·학습지원',
+    audience: '학생·교사',
+    stage: '구조 확인',
+    summary:
+      '학생이 만든 앱을 게시하고 친구의 작품을 찾아 실행·공유하는 학교 앱 공간입니다. 교사는 작품과 댓글, AI 사용량을 함께 확인합니다.',
+    url: 'https://garden-production-35fd.up.railway.app/',
+    actionLabel: '앱 열기',
+  },
+  {
+    id: 'school-memory-3d',
+    name: '3D 학교 공간 기억',
+    category: '학생지원',
+    subgroup: '학생생활·학습지원',
+    audience: '학생·학교 구성원',
+    stage: '구조 확인',
+    summary:
+      '아바타로 실제 학교를 본뜬 3D 공간을 탐험하는 학교 공간 기억 프로젝트입니다. 학교의 공간을 온라인에서 만나고 둘러봅니다.',
+    url: 'https://school-tour-production.up.railway.app/',
+    actionLabel: '앱 열기',
+  },
+  {
+    id: 'beyond-radius',
+    name: '반경너머, 도달 가능성으로',
+    category: '학교안전',
+    subgroup: '교직원용 안전지원',
+    audience: '교직원',
+    stage: '구조 확인',
+    summary:
+      '학교 주변을 직선 반경과 실제 도보 도달권으로 비교하고, 공공데이터의 학교별 지표와 출처를 함께 검토하는 교육자원 분석 도구입니다.',
+    url: 'https://park-analysis-web-production.up.railway.app/',
+    actionLabel: '앱 열기',
+  },
+  {
+    id: 'umbrella',
+    name: '아차 우산!',
+    category: '학교안전',
+    subgroup: '교직원용 안전지원',
+    audience: '교직원',
+    stage: '구조 확인',
+    summary:
+      '등·하교 시간대의 기상 예보를 바탕으로 우산 준비를 안내하는 생활 지원 앱입니다. 교직원이 날씨에 따른 등하교 안내를 준비하도록 돕습니다.',
+    url: 'https://acha-umbrella-monitor-production.up.railway.app/',
+    actionLabel: '앱 열기',
+  },
+  {
+    id: 'crisis-support',
+    name: '위기학생 조기 발견·대응 앱',
+    category: '학교안전',
+    subgroup: '교직원용 안전지원',
+    audience: '교직원',
+    stage: '확인 전',
+    summary:
+      '누적된 지각 등 생활 기록에서 지원이 필요한 신호를 살펴보기 위해 검토 중인 앱입니다. 구체적인 기능과 연결 주소는 확인 전입니다.',
+    url: null,
+    actionLabel: '연결 준비 중',
+  },
+  {
+    id: 'visitor-pass',
+    name: '일일방문증 앱',
+    category: '학교안전',
+    subgroup: '학부모·외부인용 안전서비스',
+    audience: '학부모·학교 방문자',
+    stage: '구조 확인',
+    summary:
+      '방문 목적과 시간을 사전에 확인하고 일일 방문 절차와 출입 이력을 관리하는 서비스입니다. 학교 방문자의 신청과 안내를 지원합니다.',
+    url: 'https://visitor-pass-production.up.railway.app/visitor-pass',
+    actionLabel: '앱 열기',
+  },
+  {
+    id: 'food-allergy',
+    name: '안전급식 알리미 앱',
+    category: '학교안전',
+    subgroup: '학부모·외부인용 안전서비스',
+    audience: '학부모·학생',
+    stage: '구조 확인',
+    summary:
+      '급식 메뉴와 알레르기 정보를 쉽게 확인하도록 지원하는 학교 급식 안내 서비스입니다.',
+    url: 'https://food-allergy-production.up.railway.app/#/setup',
+    actionLabel: '앱 열기',
+  },
+  {
+    id: 'seokam-buffet',
+    name: '석암 뷔페',
+    category: '학교행정',
+    subgroup: '교직원 업무 플랫폼',
+    audience: '교직원',
+    stage: '구조 확인',
+    summary:
+      '학생의 학습·활동 자료와 연구·실천 전략을 교육과정·시수·시간표·주간 안내와 학급 운영으로 연결하는 AI 지원 플랫폼입니다. 여러 업무 도구에 한곳에서 접근하는 교직원 통합 포털로의 확장을 검토합니다.',
+    url: 'https://preview-production-5c3b.up.railway.app/admin/ops',
+    actionLabel: '앱 열기',
   },
   {
     id: 'dolsoe',
-    name: '돌쇠',
-    category: '행정앱',
-    stage: '학교 적용+교육청 확산',
-    owner: '박동훈',
+    name: '학교 법령검토 시스템 돌쇠',
+    category: '학교행정',
+    subgroup: '교직원 업무 플랫폼',
+    audience: '교직원',
+    stage: '확인 전',
     summary:
-      '학교 사업계획서를 업로드하면 관련 법령을 찾아 준수 여부와 누락 사항을 검토하고, 근거 법령과 수정 권고를 제공하는 AI 기반 법령 검토 시스템입니다.',
+      '학교 사업계획서를 올리거나 내용을 입력해 관련 법령·조례·지침에 따른 검토 근거와 수정 권고를 확인하도록 만든 도구입니다. 교직원이 근거를 살펴보고 최종 판단하도록 돕습니다.',
     url: 'https://schoollaw-review-production.up.railway.app/web/',
-    actionLabel: '서비스 체험',
+    actionLabel: '앱 열기',
+  },
+  {
+    id: 'schoolletter',
+    name: '다문화 가정통신문 번역 앱',
+    category: '학교행정',
+    subgroup: '함께 연결할 업무 도구',
+    audience: '교직원·다문화 가정',
+    stage: '구조 확인',
+    summary:
+      '가정통신문의 QR을 통해 보호자가 필요한 언어로 본문을 읽고 내려받도록 지원하는 번역 서비스입니다.',
+    url: 'https://schoolletter-java-production.up.railway.app/',
+    actionLabel: '앱 열기',
+  },
+  {
+    id: 'school-ai-admin',
+    name: '학교 코딩 AI 안전·사용량 관리',
+    category: '학교행정',
+    subgroup: '함께 연결할 업무 도구',
+    audience: '교직원',
+    stage: '구조 확인',
+    summary:
+      '학생별·학급별 AI 사용을 교사가 관리하고, 학교 예산과 안전장치를 함께 살펴보는 대시보드입니다.',
+    url: 'https://school-ai-admin-production.up.railway.app/',
+    actionLabel: '앱 열기',
+  },
+  {
+    id: 'banner-factory',
+    name: '석암 배너 공방',
+    category: '학교행정',
+    subgroup: '함께 연결할 업무 도구',
+    audience: '교직원',
+    stage: '구조 확인',
+    summary:
+      '학교 행사·기념일·캠페인 배너를 분류와 검색으로 고르고 제작하는 학교용 배너 공방입니다.',
+    url: 'https://banner-factory-production.up.railway.app/',
+    actionLabel: '앱 열기',
+  },
+  {
+    id: 'staffroom',
+    name: '석암 협의보드',
+    category: '학교행정',
+    subgroup: '함께 연결할 업무 도구',
+    audience: '교직원',
+    stage: '구조 확인',
+    summary:
+      '학교의 문제와 교육계획을 안건으로 모으고 교직원 협의·교장 검토·경과보고를 연결해, 결정과 실행 과정을 함께 살펴보는 협의보드입니다.',
+    url: 'https://staffroom-production.up.railway.app/staffroom',
+    actionLabel: '앱 열기',
+  },
+  {
+    id: 'knowledge-graph',
+    name: '업무 지식그래프 · 교육이음',
+    category: '학교행정',
+    subgroup: '함께 연결할 업무 도구',
+    audience: '교직원',
+    stage: '구조 확인',
+    summary:
+      '전년도 자료에 질문하고, 붙임과 작성 양식을 근거로 공문 초안을 작성·검토하는 교육이음 프로토타입입니다.',
+    url: 'https://readwalk-app-production.up.railway.app/',
+    actionLabel: '앱 열기',
   },
   {
     id: 'seokam-on',
     name: '석암 ON',
-    category: '행정앱',
-    stage: '학교 적용+지속 개선',
-    owner: '이남건',
+    category: '학교행정',
+    subgroup: '핵심 운영 지원',
+    audience: '교직원',
+    stage: '구조 확인',
     summary:
-      '분산된 학교 행정과 운영 기능을 한곳에서 확인하고 처리하도록 지원하는 통합 서비스입니다.',
+      '현재 교직원 업무와 학생·학부모 학교생활을 두 입구로 나누고 다양한 학교 서비스를 안내합니다. 보결관리와 정보화기기·컴퓨터 정보 관리 중심으로 정리하는 방향을 검토합니다.',
     url: 'https://disciplined-happiness-production-ad86.up.railway.app/',
-    actionLabel: '서비스 체험',
+    actionLabel: '앱 열기',
   },
-  {
-    id: 'food-allergy',
-    name: '석암 안심급식',
-    category: '행정앱',
-    stage: '학교 적용+지속 개선',
-    owner: '한희나',
-    summary:
-      '급식과 알레르기 정보를 사용자가 쉽게 확인하도록 지원하는 안내 서비스입니다.',
-    url: 'https://food-allergy-production.up.railway.app/#/setup',
-    actionLabel: '서비스 체험',
-  },
-  {
-    id: 'visitor-pass',
-    name: '일일방문증',
-    category: '행정앱',
-    stage: '학교 적용+지속 개선',
-    owner: '김한일',
-    summary:
-      '학교 방문자의 신청과 일일 방문 절차를 체계적으로 지원하는 서비스입니다.',
-    url: 'https://visitor-pass-production.up.railway.app/visitor-pass',
-    actionLabel: '서비스 체험',
-  },
+];
+
+export const legacyResources: Array<{
+  id: string;
+  name: string;
+  url: string;
+  summary: string;
+}> = [
   {
     id: 'press-release',
     name: '보도자료앱',
-    category: '행정앱',
-    stage: '학교 적용+지속 개선',
-    owner: '연구원',
-    summary:
-      '학교 활동을 보도자료 형식으로 작성하고 관리하도록 지원하는 서비스입니다.',
     url: 'https://ai-html-production.up.railway.app/ai.html',
-    actionLabel: '서비스 체험',
-  },
-  {
-    id: 'umbrella',
-    name: '아차우산',
-    category: '행정앱',
-    stage: '내부테스트',
-    owner: '이창성',
-    summary: '학교의 우산 관련 운영을 지원하기 위한 생활 밀착형 서비스입니다.',
-    url: null,
-    actionLabel: '상세 공개 예정',
-  },
-  {
-    id: 'dolflix',
-    name: '돌FLIX',
-    category: '학습앱',
-    stage: '데모',
-    owner: '김한일',
-    summary:
-      '명상 및 영상 자료를 한곳에서 공유하고 활용하기 위한 콘텐츠 페이지입니다.',
-    url: 'https://school-meditation-production.up.railway.app/',
-    actionLabel: '데모 체험',
-  },
-  {
-    id: 'michuhol-city-development',
-    name: '미추홀구 도시개발 앱',
-    category: '학습앱',
-    stage: '학교 적용+지속 개선',
-    owner: '조미진',
-    summary:
-      '국어·사회·수학을 연계하여 미추홀구의 도시 문제를 탐구하는 ‘우리땅을 읽걷쓰 AI 도시계획’ 교과 통합 프로젝트 앱입니다. 학생들은 실제 녹지 접근성 분석으로 도시 불균형을 발견하고, 해결 방안과 나만의 도시계획을 설계·발표합니다.',
-    url: 'https://projectfor5city-production-ca83.up.railway.app/',
-    actionLabel: '서비스 체험',
-  },
-  {
-    id: 'class-live-interpreter',
-    name: '실시간 통역앱',
-    category: '학습앱',
-    stage: '학교 적용+지속 개선',
-    owner: '박동훈 · 조미진',
-    summary:
-      '2022 개정 교육과정을 기반으로 다문화 학생에게 교과 개념어와 학습 내용을 정확하게 실시간 통역하는 앱입니다. 수업과 관련 없는 발언은 걸러내고 핵심 학습 내용만 구조화·요약하여 학생의 복습을 돕고 교사의 부담을 줄입니다.',
-    url: 'https://classtalk-live-interpreter-production.up.railway.app/',
-    actionLabel: '서비스 체험',
-  },
-  {
-    id: 'rockam-padlet',
-    name: '교내전용 패들렛',
-    category: '학습앱',
-    stage: '학교 적용+지속 개선',
-    owner: '조미진',
-    summary:
-      '별도 절차 없이 비인증 기반으로 사용할 수 있는 교내전용 패들렛입니다. 저장 모드 사용 시 학급 내 학생 글들이 자동으로 수집됩니다.\n\n향후 아이들의 글쓰기 활동 지원과 자동 문집 완성 등 다양한 기능으로 확대할 예정입니다.',
-    url: 'https://2026-rockam.up.railway.app',
-    actionLabel: '서비스 체험',
+    summary: '학교 활동을 보도자료 형식으로 작성하고 관리하는 기존 서비스입니다.',
   },
   {
     id: 'notion',
     name: '석암초 돌AI연구소 노션',
-    category: '홍보·운영',
-    stage: '학교 적용+지속 개선',
-    owner: '한희나',
-    ownerNote: '관리 및 운영',
-    summary:
-      '연구소의 프로젝트 정보, 개발 단계, 서비스 링크와 개선 과정을 한곳에서 기록하고 공유하는 운영 채널입니다.',
     url: 'https://app.notion.com/p/AI-39b6de4b73a881c89e81fe2c29f38cbf?source=copy_link',
-    actionLabel: '채널 열기',
+    summary: '연구소의 프로젝트와 개발 과정, 서비스 링크를 기록하는 운영 채널입니다.',
   },
   {
     id: 'rock-sports',
     name: '체육환경부 서비스',
-    category: '개인 실험',
-    stage: '아이디어',
-    owner: '한희나',
-    summary:
-      '체육 관련 학교 운영 기능을 실험하고 향후 석암 ON에 통합하기 위한 프로젝트입니다.',
     url: 'https://rock-sports-production.up.railway.app/',
-    actionLabel: '서비스 체험',
+    summary: '체육 관련 학교 운영 기능을 실험한 기존 프로젝트입니다.',
   },
 ];

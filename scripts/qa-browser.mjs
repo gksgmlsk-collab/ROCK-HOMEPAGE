@@ -1,1069 +1,751 @@
+import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
 
 const baseUrl = process.env.QA_BASE_URL ?? 'http://127.0.0.1:4173';
-const edgePath =
-  process.env.QA_BROWSER_PATH ??
-  'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
 const outputDirectory = fileURLToPath(new URL('../artifacts/', import.meta.url));
+const report = {
+  generatedAt: new Date().toISOString(), baseUrl, checks: [], appInventories: {},
+  responsive: [], screenshots: [], consoleErrors: [], pageErrors: [], httpErrors: [], failedRequests: [],
+};
+const areas = [
+  { id: 'student', label: '학생지원', count: 10 },
+  { id: 'safety', label: '학교안전', count: 5 },
+  { id: 'admin', label: '학교행정', count: 8 },
+];
 
 await mkdir(outputDirectory, { recursive: true });
-
 const browser = await chromium.launch({
-  executablePath: edgePath,
+  executablePath: process.env.QA_BROWSER_PATH ??
+    'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
   headless: true,
 });
 
-const report = {
-  generatedAt: new Date().toISOString(),
-  baseUrl,
-  desktop: {},
-  tablet: {},
-  mobile: {},
-  reducedMotion: {},
-  hashNavigation: {},
-  consoleErrors: [],
-  pageErrors: [],
-  httpErrors: [],
-  failedRequests: [],
-};
-
 function watchPage(page, label) {
+  page.setDefaultTimeout(10_000);
   page.on('console', (message) => {
-    if (message.type() === 'error') {
-      // Chromium emits a generic console line for HTTP failures. The response
-      // listener below records the actionable URL and status instead.
-      if (message.text().startsWith('Failed to load resource:')) return;
+    if (message.type() === 'error' && !message.text().startsWith('Failed to load resource:')) {
       report.consoleErrors.push({ label, text: message.text() });
     }
   });
-  page.on('pageerror', (error) => {
-    report.pageErrors.push({ label, text: error.message });
-  });
+  page.on('pageerror', (error) => report.pageErrors.push({ label, text: error.message }));
   page.on('response', (response) => {
     if (response.status() >= 400) {
-      report.httpErrors.push({
-        label,
-        url: response.url(),
-        status: response.status(),
-      });
+      report.httpErrors.push({ label, url: response.url(), status: response.status() });
     }
   });
   page.on('requestfailed', (request) => {
     const error = request.failure()?.errorText ?? 'unknown';
-    // Rapid currentTime changes intentionally abort in-flight blob reads. This
-    // is the seek-coalescing path under test, not a network or decoder failure.
-    if (request.url().startsWith('blob:') && error === 'net::ERR_ABORTED') {
-      return;
-    }
-    report.failedRequests.push({
-      label,
-      url: request.url(),
-      error,
+    // Closing a video or leaving its view intentionally cancels media downloads.
+    if (error === 'net::ERR_ABORTED' &&
+      (request.resourceType() === 'media' || request.url().startsWith('blob:') ||
+        (request.url().startsWith(`${baseUrl}/generated/`) && /\.(mp4|webm)(\?|$)/.test(request.url())))) return;
+    report.failedRequests.push({ label, url: request.url(), error });
+  });
+}
+
+async function check(name, page, run) {
+  try {
+    await run();
+    report.checks.push({ name, passed: true });
+    console.log(`PASS ${name}`);
+  } catch (error) {
+    report.checks.push({ name, passed: false, error: error.stack ?? String(error) });
+    console.log(`FAIL ${name}: ${error.message}`);
+    await page.screenshot({ path: join(outputDirectory, `qa-failure-${report.checks.length}.png`) })
+      .catch(() => {});
+  }
+}
+
+async function screenshot(page, name, fullPage = false) {
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+    const visibleImages = [...document.images].filter((img) => {
+      const bounds = img.getBoundingClientRect();
+      return bounds.width > 0 && bounds.height > 0 && bounds.bottom > 0 && bounds.top < innerHeight &&
+        bounds.right > 0 && bounds.left < innerWidth;
     });
+    // A lazy image clipped by a rail or hidden behind a dialog may not start a
+    // request. It must never hold up a screenshot of the currently visible UI.
+    await Promise.race([
+      Promise.all(visibleImages.map((img) => img.decode().catch(() => {}))),
+      new Promise(resolve => setTimeout(resolve, 3000)),
+    ]);
   });
+  await page.screenshot({ path: join(outputDirectory, name), fullPage });
+  report.screenshots.push(name);
 }
 
-async function scrollToProgress(page, progress) {
-  await page.evaluate((nextProgress) => {
-    const world = document.querySelector('.scroll-world');
-    if (!(world instanceof HTMLElement)) {
-      throw new Error('Scroll World container not found');
+async function openRoute(page, route) {
+  const url = new URL(route, `${baseUrl}/`).href;
+  // Each scenario starts fresh even if the preceding one used the same route.
+  if (page.url() === url) await page.reload({ waitUntil: 'domcontentloaded' });
+  else await page.goto(url, { waitUntil: 'domcontentloaded' });
+  await waitForRoute(page, route);
+}
+
+async function waitForRoute(page, route) {
+  await page.waitForFunction((hash) => window.location.hash === hash, route);
+  if (route === '#/intro' || route === '#journey-start') {
+    await page.locator('.intro-site').waitFor({ state: 'visible' });
+    assert.equal(await page.locator('main').count(), 1, 'one main landmark');
+    assert.equal(await page.locator('.scroll-world, .reduced-world').count(), 1,
+      'the introduction has one motion-aware experience');
+    assert.equal(await page.locator('.app-workspace, .about-workspace, .site-header').count(), 0,
+      'the introduction does not mount the homepage behind it');
+    return;
+  }
+  const area = route === '#/apps' ? 'all' : route.split('/')[2];
+  const selector = route.startsWith('#/apps')
+    ? `.app-workspace[data-area="${area}"]`
+    : `.about-workspace[data-section="${area ?? 'intro'}"]`;
+  await page.locator(selector).waitFor({ state: 'visible' });
+  assert.equal(await page.locator('main').count(), 1, 'one main landmark');
+  assert.equal(await page.locator('.app-workspace, .about-workspace').count(), 1,
+    'only the selected workspace is mounted');
+  assert.equal(await page.locator('.scroll-world').count(), 0,
+    'the scroll introduction is absent from ordinary homepage navigation');
+  assert.equal(await page.locator('.site-header').getAttribute('data-theme'), null,
+    'all homepage views share the original ivory and green header');
+}
+
+function menuButton(page, label) {
+  return page.locator('.site-header__nav').getByRole('button', { name: label, exact: true });
+}
+
+async function openMenu(page, label) {
+  const button = menuButton(page, label);
+  if (await button.getAttribute('aria-expanded') !== 'true') await button.click();
+  assert.equal(await button.getAttribute('aria-expanded'), 'true');
+  const panelId = await button.getAttribute('aria-controls');
+  assert.ok(panelId, 'menu declares its controlled panel');
+  const panel = page.locator(`[id="${panelId}"]`);
+  await panel.waitFor({ state: 'visible' });
+  return panel;
+}
+
+async function chooseArea(page, area) {
+  const panel = await openMenu(page, '전체 앱');
+  await panel.getByRole('link', { name: area.label, exact: false }).click();
+  await waitForRoute(page, `#/apps/${area.id}`);
+  assert.equal(await menuButton(page, '전체 앱').getAttribute('aria-expanded'), 'false');
+}
+
+async function verifyExternalLinks(page) {
+  const unsafe = await page.locator('a').evaluateAll((links) => links
+    .filter((link) => link.protocol === 'javascript:' ||
+      (link.target === '_blank' && !link.rel.split(/\s+/).includes('noopener')))
+    .map((link) => ({ text: link.textContent, href: link.href, rel: link.rel })));
+  assert.deepEqual(unsafe, [], 'external links use safe protocols and opener isolation');
+}
+
+async function verifyAwardEvidence(page) {
+  const expected = [
+    { id: 'data-rock', issuer: '교육부장관상', prize: '일반부 대상', competition: '제8회 교육 공공데이터 AI 활용대회',
+      stats: ['242교', '20종', '67.4%'], report: 'https://lab-tq11.onrender.com/bangyeong.html',
+      service: 'https://park-analysis-web-production.up.railway.app/' },
+    { id: 'dolsoe-award', issuer: '법제처장상', prize: '전국 최우수상', competition: '제2회 법령데이터 활용 아이디어 공모전',
+      stats: ['약 400개', '10개', '6 → 1위'], report: 'https://lab-tq11.onrender.com/dolsoe.html',
+      service: 'https://schoollaw-review-production.up.railway.app/web/' },
+  ];
+  assert.equal(await page.locator('.about-award[data-award]').count(), 2);
+  for (const award of expected) {
+    const card = page.locator(`.about-award[data-award="${award.id}"]`);
+    const text = (await card.innerText()).replace(/\s+/g, ' ');
+    for (const preserved of [award.issuer, award.prize, award.competition, ...award.stats]) {
+      assert.ok(text.includes(preserved), `${award.id} retains ${preserved}`);
     }
-
-    const worldTop = world.getBoundingClientRect().top + window.scrollY;
-    const travel = Math.max(1, world.offsetHeight - window.innerHeight);
-    window.scrollTo(0, worldTop + travel * nextProgress);
-  }, progress);
-  await page.waitForTimeout(900);
-}
-
-async function waitForMaster(page) {
-  await page.waitForFunction(
-    () => {
-      const video = document.querySelector('.world-film');
-      return Boolean(video && video.readyState >= HTMLMediaElement.HAVE_METADATA);
-    },
-    { timeout: 120_000 },
-  );
-  await page.waitForFunction(
-    () => document.querySelector('.world-film')?.classList.contains('is-visible'),
-    { timeout: 120_000 },
-  );
-}
-
-async function waitForSectionAnchor(page, selector) {
-  // Let nearby lazy images settle first. If their late intrinsic sizing moves
-  // the destination after native anchor navigation, the check below must fail
-  // instead of silently taking a screenshot of the preceding section.
-  await page.waitForTimeout(650);
-  await page.waitForFunction(
-    (sectionSelector) => {
-      const section = document.querySelector(sectionSelector);
-      if (!(section instanceof HTMLElement)) return false;
-      const top = section.getBoundingClientRect().top;
-      return top >= 0 && top < 140;
-    },
-    selector,
-    { timeout: 10_000 },
-  );
-}
-
-async function waitForStableHashAnchor(page, selector) {
-  await page.waitForFunction(
-    (sectionSelector) => {
-      const section = document.querySelector(sectionSelector);
-      const header = document.querySelector('.site-header');
-      if (!(section instanceof HTMLElement) || !(header instanceof HTMLElement)) {
-        return false;
-      }
-
-      const gap =
-        section.getBoundingClientRect().top - header.getBoundingClientRect().bottom;
-      return Math.abs(gap - 16) <= 2;
-    },
-    selector,
-    { timeout: 10_000 },
-  );
-  await page.waitForTimeout(180);
-
-  return page.evaluate((sectionSelector) => {
-    const section = document.querySelector(sectionSelector);
-    const header = document.querySelector('.site-header');
-    const activeLinks = [...document.querySelectorAll('.site-header__nav a.is-active')];
-    const sectionRect = section?.getBoundingClientRect();
-    const headerRect = header?.getBoundingClientRect();
-    const activeLink = activeLinks[0];
-
-    return {
-      hash: window.location.hash,
-      scrollY: window.scrollY,
-      targetTop: sectionRect?.top,
-      headerBottom: headerRect?.bottom,
-      gap:
-        sectionRect && headerRect ? sectionRect.top - headerRect.bottom : null,
-      activeCount: activeLinks.length,
-      activeHref: activeLink?.getAttribute('href'),
-      ariaCurrent: activeLink?.getAttribute('aria-current'),
-    };
-  }, selector);
-}
-
-function hashAnchorPassed(state, expectedHash) {
-  return (
-    state?.hash === expectedHash &&
-    Math.abs(state?.gap - 16) <= 2 &&
-    state?.activeCount === 1 &&
-    state?.activeHref === expectedHash &&
-    state?.ariaCurrent === 'location'
-  );
-}
-
-async function screenshotSection(page, selector, fileName) {
-  await page.evaluate((sectionSelector) => {
-    const section = document.querySelector(sectionSelector);
-    if (!(section instanceof HTMLElement)) {
-      throw new Error(`Section not found: ${sectionSelector}`);
+    assert.equal(await card.locator(`a[href="${award.report}"]`).count() >= 1, true);
+    assert.equal(await card.locator(`a[href="${award.service}"]`).count(), 1);
+    assert.ok(await card.locator('img').count() >= 1, 'each award keeps its supporting image');
+    for (const image of await card.locator('img').all()) {
+      await image.scrollIntoViewIfNeeded();
+      await image.evaluate(node => node.decode());
+      assert.ok(await image.evaluate(node => node.naturalWidth > 0));
     }
+  }
+  await page.locator('.about-awards h1').scrollIntoViewIfNeeded();
+  await verifyExternalLinks(page);
+}
 
-    const top = section.getBoundingClientRect().top + window.scrollY - 100;
-    window.scrollTo(0, Math.max(0, top));
-  }, selector);
-  await page.waitForTimeout(350);
-  await page.screenshot({
-    path: join(outputDirectory, fileName),
-  });
+async function collectCards(page) {
+  const result = [];
+  for (let pageNumber = 0; pageNumber < 4; pageNumber += 1) {
+    const cards = await page.locator('.app-card').evaluateAll((elements) => elements.map((card) => ({
+      id: card.getAttribute('data-project'), category: card.getAttribute('data-category'), text: card.textContent,
+    })));
+    assert.ok(cards.length <= 6, 'the page keeps the app list compact');
+    result.push(...cards);
+    const next = page.getByRole('button', { name: '다음 앱 목록', exact: true });
+    if (await next.count() === 0 || !(await next.isEnabled())) break;
+    const previousFirst = cards[0]?.id;
+    await next.click();
+    await page.waitForFunction((id) =>
+      document.querySelector('.app-card')?.getAttribute('data-project') !== id, previousFirst);
+  }
+  assert.equal(new Set(result.map((card) => card.id)).size, result.length,
+    'pagination does not repeat apps');
+  return result;
+}
+
+async function verifyDialogKeyboard(page, dialog, opener) {
+  await dialog.waitFor({ state: 'visible' });
+  assert.equal(await dialog.evaluate((node) => node.contains(document.activeElement)), true,
+    'opening a dialog moves keyboard focus inside');
+  await page.keyboard.press('Shift+Tab');
+  assert.equal(await dialog.evaluate((node) => node.contains(document.activeElement)), true,
+    'reverse tab keeps focus inside the dialog');
+  await page.keyboard.press('Escape');
+  await dialog.waitFor({ state: 'hidden' });
+  assert.equal(await opener.evaluate((node) => node === document.activeElement), true,
+    'closing the dialog restores its opener');
 }
 
 try {
   const desktopContext = await browser.newContext({
-    viewport: { width: 1440, height: 900 },
-    deviceScaleFactor: 1,
-    reducedMotion: 'no-preference',
+    viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1,
   });
-  const desktopPage = await desktopContext.newPage();
-  watchPage(desktopPage, 'desktop');
-  await desktopPage.goto(baseUrl, { waitUntil: 'domcontentloaded' });
-  await waitForMaster(desktopPage);
-  await desktopPage.waitForFunction(
-    () => {
-      const intro = document.querySelector('.intro-loop');
-      return Boolean(
-        intro &&
-          intro.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
-          intro.classList.contains('is-painted'),
-      );
-    },
-    { timeout: 120_000 },
-  );
+  const desktop = await desktopContext.newPage();
+  watchPage(desktop, 'desktop');
 
-  report.desktop.start = await desktopPage.evaluate(() => {
-    const video = document.querySelector('.world-film');
-    const intro = document.querySelector('.intro-loop');
-    const cueBadge = document.querySelector('.scroll-cue__badge');
-    const cueLabel = document.querySelector('.scroll-cue__copy strong');
-    const cueRect = cueBadge?.getBoundingClientRect();
-    return {
-      h1: document.querySelector('h1')?.textContent?.trim(),
-      sceneButtons: document.querySelectorAll('.journey-progress button').length,
-      menuLinks: document.querySelectorAll('.site-header__nav a').length,
-      mainCount: document.querySelectorAll('main').length,
-      duration: video?.duration,
-      currentTime: video?.currentTime,
-      sourceClass: video?.className,
-      introCurrentTime: intro?.currentTime,
-      introAutoplay: intro?.autoplay,
-      introLoop: intro?.loop,
-      introMuted: intro?.muted,
-      introPaused: intro?.paused,
-      introFit: intro ? getComputedStyle(intro).objectFit : null,
-      scrollCueLabel: cueLabel?.textContent?.trim(),
-      scrollCueHeight: cueRect?.height,
-      scrollCueFontSize: cueLabel
-        ? Number.parseFloat(getComputedStyle(cueLabel).fontSize)
-        : null,
-    };
-  });
-  await desktopPage.waitForTimeout(700);
-  report.desktop.start.introTimeAfter = await desktopPage
-    .locator('.intro-loop')
-    .evaluate((intro) => intro.currentTime);
-  report.desktop.start.introMotion =
-    report.desktop.start.introTimeAfter >
-    report.desktop.start.introCurrentTime + 0.25;
-  await desktopPage.screenshot({
-    path: join(outputDirectory, 'desktop-start.png'),
+  await check('bare URL starts with only the animated scroll introduction', desktop, async () => {
+    await desktop.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+    await desktop.locator('.intro-site .scroll-world').waitFor();
+    assert.equal(new URL(desktop.url()).hash, '');
+    assert.equal(await desktop.locator('.app-workspace, .about-workspace, .site-header').count(), 0);
+    assert.equal(await desktop.locator('main').count(), 1);
+    assert.equal(await desktop.locator('main h1').count(), 1);
+    assert.equal(await desktop.locator('.world-film[data-source-variant="desktop"]').count(), 1);
+    assert.equal(await desktop.locator('.intro-entry__button').count(), 0,
+      'the final entry button appears at the end of the journey');
+    const shortcut = desktop.getByRole('link', { name: '홈페이지 바로가기', exact: false });
+    assert.equal(await shortcut.count(), 1);
+    assert.equal(await desktop.getByText('소개 건너뛰기', { exact: true }).count(), 0);
+    const shortcutStyle = await shortcut.evaluate(node => {
+      const style = getComputedStyle(node);
+      return { height: node.getBoundingClientRect().height, fontSize: Number.parseFloat(style.fontSize), background: style.backgroundColor };
+    });
+    assert.ok(shortcutStyle.height >= 58 && shortcutStyle.fontSize >= 17,
+      'the desktop homepage shortcut has a large readable touch target');
+    const shortcutBackground = shortcutStyle.background.match(/[\d.]+/g)?.map(Number) ?? [];
+    assert.ok(shortcutBackground.length >= 3 && shortcutBackground.slice(0, 3).every(channel => channel >= 240) &&
+      (shortcutBackground[3] === undefined || shortcutBackground[3] >= .9),
+    'the homepage shortcut uses the requested white background');
+    await screenshot(desktop, 'desktop-intro-start.png');
   });
 
-  await scrollToProgress(desktopPage, 2.5 / 44);
-  report.desktop.originalBand = await desktopPage.evaluate(() => {
-    const video = document.querySelector('.world-film');
-    const intro = document.querySelector('.intro-loop');
-    const copy = document.querySelector('.scene-copy');
-    return {
-      currentTime: video?.currentTime,
-      opacity: video ? getComputedStyle(video).opacity : null,
-      introOpacity: intro ? getComputedStyle(intro).opacity : null,
-      introPaused: intro?.paused,
-      copyClass: copy?.className,
-      copyOpacity: copy ? Number.parseFloat(getComputedStyle(copy).opacity) : null,
-      copyBackground: copy ? getComputedStyle(copy).backgroundColor : null,
-      activeScene: document.querySelector('.journey-progress button.is-active')
-        ?.getAttribute('aria-label'),
-    };
-  });
-  await desktopPage.screenshot({
-    path: join(outputDirectory, 'desktop-original-band.png'),
+  await check('the final scroll scene offers a working homepage entry', desktop, async () => {
+    await desktop.locator('.intro-main').focus();
+    await desktop.keyboard.press('End');
+    const enter = desktop.getByRole('link', { name: '홈페이지 들어가기', exact: false });
+    await enter.waitFor({ state: 'visible', timeout: 30_000 });
+    assert.equal(await enter.getAttribute('href'), '#/about');
+    const bounds = await enter.boundingBox();
+    assert.ok(bounds && bounds.width >= 180 && bounds.height >= 44);
+    assert.equal(await desktop.locator('.end-sequence .end-brand').count(), 1);
+    await screenshot(desktop, 'desktop-intro-end.png');
+    await enter.click();
+    await waitForRoute(desktop, '#/about');
+    assert.equal(await desktop.evaluate(() => scrollY), 0,
+      'entering the homepage starts at its top');
   });
 
-  report.desktop.sceneCopyPanels = [];
-  for (const beat of [
-    { id: 'dol-ai-lab', time: 2.5 },
-    { id: 'draconis', time: 11.5 },
-    { id: 'public-data', time: 20.5 },
-    { id: 'dolsoe', time: 29.5 },
-  ]) {
-    await scrollToProgress(desktopPage, beat.time / 44);
-    report.desktop.sceneCopyPanels.push(
-      await desktopPage.evaluate((id) => {
-        const copy = document.querySelector('.scene-copy');
-        const heading = copy?.querySelector('h2');
-        const paragraph = copy?.querySelector('p');
-        return {
-          id,
-          className: copy?.className,
-          background: copy ? getComputedStyle(copy).backgroundColor : null,
-          heading: heading?.textContent,
-          subtitle: paragraph?.textContent,
-          headingWordBreak: heading ? getComputedStyle(heading).wordBreak : null,
-          subtitleWordBreak: paragraph ? getComputedStyle(paragraph).wordBreak : null,
-        };
-      }, beat.id),
-    );
-    await desktopPage.screenshot({
-      path: join(outputDirectory, `desktop-scene-copy-${beat.id}.png`),
+  await check('homepage introduction keeps the two top-level menus', desktop, async () => {
+    await openRoute(desktop, '#/about');
+    const labels = await desktop.locator('.site-header__nav button[aria-expanded]').allTextContents();
+    assert.deepEqual(labels.map((label) => label.trim()), ['연구소 소개', '전체 앱']);
+    assert.equal(await desktop.locator('.app-workspace, .about-awards, .about-organization, .scroll-world').count(), 0);
+    assert.equal(await desktop.locator('main h1').count(), 1);
+    await verifyExternalLinks(desktop);
+    await screenshot(desktop, 'desktop-start.png');
+  });
+
+  await check('intro replay, homepage shortcut, browser history, and legacy entry remain usable', desktop, async () => {
+    await desktop.getByRole('link', { name: '처음 소개영상 다시보기', exact: false }).click();
+    await waitForRoute(desktop, '#/intro');
+    await desktop.getByRole('link', { name: '홈페이지 바로가기', exact: false }).click();
+    await waitForRoute(desktop, '#/about');
+    await desktop.goBack();
+    await waitForRoute(desktop, '#/intro');
+    await desktop.goForward();
+    await waitForRoute(desktop, '#/about');
+    await openRoute(desktop, '#journey-start');
+    await desktop.getByRole('link', { name: '홈페이지 바로가기', exact: false }).click();
+    await waitForRoute(desktop, '#/about');
+  });
+
+  await check('dropdown menus open, select, and dismiss accessibly', desktop, async () => {
+    const aboutPanel = await openMenu(desktop, '연구소 소개');
+    for (const label of ['연구소 소개', '연구소 수상', '운영조직']) {
+      assert.equal(await aboutPanel.getByRole('link', { name: label, exact: false }).count(), 1);
+    }
+    const appsPanel = await openMenu(desktop, '전체 앱');
+    assert.equal(await menuButton(desktop, '연구소 소개').getAttribute('aria-expanded'), 'false');
+    for (const area of areas) {
+      assert.equal(await appsPanel.getByRole('link', { name: area.label, exact: false }).count(), 1);
+    }
+    await screenshot(desktop, 'desktop-app-menu.png');
+    await desktop.keyboard.press('Escape');
+    assert.equal(await menuButton(desktop, '전체 앱').getAttribute('aria-expanded'), 'false');
+    assert.equal(await menuButton(desktop, '전체 앱').evaluate((node) => node === document.activeElement), true);
+    await openMenu(desktop, '전체 앱');
+    await desktop.locator('main h1').click();
+    assert.equal(await menuButton(desktop, '전체 앱').getAttribute('aria-expanded'), 'false');
+    await openMenu(desktop, '전체 앱');
+    await desktop.locator('main').focus();
+    assert.equal(await menuButton(desktop, '전체 앱').getAttribute('aria-expanded'), 'false');
+    await menuButton(desktop, '전체 앱').focus();
+    await desktop.keyboard.press('ArrowDown');
+    assert.equal(await desktop.locator('#nav-panel-apps .site-menu-grid a').first()
+      .evaluate(node => node === document.activeElement), true,
+    'ArrowDown opens the menu and focuses its first destination');
+    await desktop.keyboard.press('Escape');
+    assert.equal(await menuButton(desktop, '전체 앱').evaluate(node => node === document.activeElement), true);
+    for (const area of areas) await chooseArea(desktop, area);
+  });
+
+  await check('direct links, reload, and browser history preserve the selected view', desktop, async () => {
+    await openRoute(desktop, '#/apps/student');
+    await desktop.reload({ waitUntil: 'domcontentloaded' });
+    await waitForRoute(desktop, '#/apps/student');
+    await chooseArea(desktop, areas[1]);
+    await desktop.goBack();
+    await waitForRoute(desktop, '#/apps/student');
+    await desktop.goForward();
+    await waitForRoute(desktop, '#/apps/safety');
+    await openRoute(desktop, '#/about/awards');
+    await desktop.reload({ waitUntil: 'domcontentloaded' });
+    await waitForRoute(desktop, '#/about/awards');
+  });
+
+  await check('all-app overview offers three domains without a 23-app wall', desktop, async () => {
+    await openRoute(desktop, '#/apps');
+    assert.equal(await desktop.locator('.app-domain-tile[data-area]').count(), 3);
+    assert.equal(await desktop.locator('.app-card').count(), 0);
+    await verifyExternalLinks(desktop);
+    await screenshot(desktop, 'desktop-app-overview.png');
+  });
+
+  for (const area of areas) {
+    await check(`${area.label}: complete inventory and owner visibility`, desktop, async () => {
+      await openRoute(desktop, `#/apps/${area.id}`);
+      if (area.id !== 'safety') await screenshot(desktop, `desktop-${area.id}.png`);
+      const cards = await collectCards(desktop);
+      assert.equal(cards.length, area.count);
+      assert.ok(cards.every((card) => card.category === area.label));
+      assert.ok(cards.filter((card) => card.id !== 'draconis').every((card) =>
+        !/담당|조미진|김한일|박동훈|한희나|이창성|이남건|박주현/.test(card.text)),
+      'other app cards omit owner names');
+      if (area.id === 'student') {
+        assert.match(cards.find((card) => card.id === 'draconis')?.text ?? '', /조미진/);
+      }
+      report.appInventories[area.id] = cards.map(({ id }) => id);
+      await verifyExternalLinks(desktop);
     });
   }
 
-  await scrollToProgress(desktopPage, 0.62);
-  const forwardTime = await desktopPage
-    .locator('.world-film')
-    .evaluate((video) => video.currentTime);
-  await scrollToProgress(desktopPage, 0.31);
-  const reverseTime = await desktopPage
-    .locator('.world-film')
-    .evaluate((video) => video.currentTime);
-  report.desktop.reverse = {
-    forwardTime,
-    reverseTime,
-    passed: reverseTime < forwardTime,
-  };
-  await desktopPage.screenshot({
-    path: join(outputDirectory, 'desktop-reverse.png'),
+  await check('representative apps show large, visible preview images', desktop, async () => {
+    for (const area of areas) {
+      await openRoute(desktop, `#/apps/${area.id}`);
+      const images = desktop.locator('.app-feature__image img');
+      assert.equal(await images.count(), area.id === 'admin' ? 2 : 1);
+      for (const image of await images.all()) {
+        await image.evaluate((node) => node.decode());
+        const dimensions = await image.locator('..').boundingBox();
+        assert.ok(dimensions && dimensions.width >= 420 && dimensions.height >= 220,
+          `${area.label} representative media frame has a readable desktop size`);
+        const imageBounds = await image.boundingBox();
+        assert.ok(imageBounds && imageBounds.width >= 320 && imageBounds.height >= 120,
+          'the image remains visible inside its large media frame');
+      }
+      if (area.id === 'student') {
+        assert.match(await images.first().getAttribute('src'), /draconis-world-card\.png$/,
+          'Draconis uses the illustrated world card as its representative image');
+      }
+    }
   });
 
-  await scrollToProgress(desktopPage, 35.2 / 44);
-  await desktopPage.screenshot({
-    path: join(outputDirectory, 'desktop-transition-five-early.png'),
-  });
-  await scrollToProgress(desktopPage, 35.8 / 44);
-  await desktopPage.screenshot({
-    path: join(outputDirectory, 'desktop-transition-five-late.png'),
-  });
-
-  report.desktop.sceneFiveBeats = [];
-  for (const beat of [
-    { name: 'overview', time: 37.2 },
-    { name: 'push-in', time: 38.45 },
-    { name: 'community', time: 39.7 },
-    { name: 'finale', time: 40.7 },
-  ]) {
-    await scrollToProgress(desktopPage, beat.time / 44);
-    report.desktop.sceneFiveBeats.push({
-      name: beat.name,
-      currentTime: await desktopPage
-        .locator('.world-film')
-        .evaluate((video) => video.currentTime),
-    });
-    await desktopPage.screenshot({
-      path: join(outputDirectory, `desktop-scene-five-${beat.name}.png`),
-    });
-  }
-  report.desktop.sceneFive = await desktopPage.evaluate(() => ({
-    currentTime: document.querySelector('.world-film')?.currentTime,
-    activeScene: document.querySelector('.journey-progress button.is-active')
-      ?.getAttribute('aria-label'),
-    activeCopyCount: document.querySelectorAll('.scene-copy').length,
-    originalPosterCount: document.querySelectorAll(
-      'img[src="/assets/scene5_services.png"]',
-    ).length,
-  }));
-
-  await scrollToProgress(desktopPage, 43.45 / 44);
-  report.desktop.ending = await desktopPage.evaluate(() => {
-    const brand = document.querySelector('.end-brand');
-    const wordmark = document.querySelector('.end-brand__wordmark strong');
-    return {
-      brandCount: document.querySelectorAll('.end-brand').length,
-      text: brand?.textContent?.replace(/\s+/g, ' ').trim(),
-      wordmarkColor: wordmark ? getComputedStyle(wordmark).color : null,
-      background: brand ? getComputedStyle(brand).backgroundImage : null,
-    };
-  });
-  await desktopPage.screenshot({
-    path: join(outputDirectory, 'desktop-ending.png'),
+  await check('subgroups and search narrow the selected domain, with a useful empty state', desktop, async () => {
+    await openRoute(desktop, '#/apps/student');
+    const filters = desktop.getByRole('group', { name: '활용 목적', exact: true });
+    await filters.getByRole('button', { name: '교과·프로젝트 학습', exact: false }).click();
+    assert.equal(await desktop.locator('.app-card').count(), 4);
+    await filters.getByRole('button', { name: '학생생활·학습지원', exact: false }).click();
+    assert.equal(await desktop.locator('.app-card').count(), 6);
+    await filters.getByRole('button', { name: '전체', exact: false }).click();
+    const search = desktop.locator('#app-search');
+    await search.fill('DRACONIS');
+    assert.equal(await desktop.locator('.app-card').count(), 1);
+    assert.equal(await desktop.locator('.app-card').getAttribute('data-project'), 'draconis');
+    await search.fill('반경너머');
+    assert.equal(await desktop.locator('.app-card').count(), 0,
+      'student search does not leak school-safety results');
+    await search.fill('존재하지않는앱_qa');
+    assert.equal(await desktop.locator('.app-card').count(), 0);
+    assert.ok(await desktop.getByText(/(앱이 없|찾지 못|검색 결과가 없)/).count() > 0);
+    await desktop.getByRole('button', { name: '검색 지우기', exact: true }).click();
+    assert.equal(await search.inputValue(), '');
+    assert.equal((await collectCards(desktop)).length, 10);
   });
 
-  await desktopPage.locator('.site-header__nav a[href="#lab-intro"]').click();
-  await waitForSectionAnchor(desktopPage, '#lab-intro');
-  report.desktop.content = await desktopPage.evaluate(() => {
-    const section = document.querySelector('#lab-intro');
-    const bodyText = document.body.textContent ?? '';
-    const introTitle = document.querySelector('.intro-editorial__copy h2');
-    const organizationTitle = document.querySelector('.organization .subsection-heading h2');
-    const organizationBody = document.querySelector(
-      '.organization__departments article div > p:last-child',
-    );
-    const awardTitle = document.querySelector('.award-card h3');
-    const principleGrid = document.querySelector('.principle-grid');
-    const fontSize = (element) =>
-      element ? Number.parseFloat(getComputedStyle(element).fontSize) : null;
-    const sectionOrder = [
-      '#lab-intro',
-      '#lab-featured',
-      '#lab-awards',
-      '#lab-services',
-      '#lab-organization',
-    ].map((selector) => document.querySelector(selector)?.offsetTop);
-    return {
-      menuLabels: Array.from(
-        document.querySelectorAll('.site-header__nav a'),
-        (link) => link.textContent?.trim(),
-      ),
-      introTop: section?.getBoundingClientRect().top,
-      sectionOrder,
-      operatingModels: document.querySelectorAll('.operating-model').length,
-      organizationGroups: document.querySelectorAll('.organization__roster > div').length,
-      roadmaps: document.querySelectorAll('.roadmap').length,
-      principleCards: document.querySelectorAll('.principle-grid article').length,
-      principleBodies: document.querySelectorAll('.principle-grid article p').length,
-      principleColumns: principleGrid
-        ? getComputedStyle(principleGrid).gridTemplateColumns.split(' ').length
-        : 0,
-      featuredCards: document.querySelectorAll('.featured-card').length,
-      awardCards: document.querySelectorAll('.award-card').length,
-      portfolioCards: document.querySelectorAll('.project-card').length,
-      portfolioFilters: document.querySelectorAll('.portfolio-filter button').length,
-      credentialLeak:
-        bodyText.includes('teacher1234') || bodyText.includes('neis'),
-      removedRoadmapCopy: !bodyText.includes('향후 운영계획'),
-      contentWordBreak: section ? getComputedStyle(section).wordBreak : null,
-      awardWordBreak: awardTitle ? getComputedStyle(awardTitle).wordBreak : null,
-      awardTitleLineSets: Array.from(
-        document.querySelectorAll('.award-card h3'),
-        (heading) =>
-          Array.from(heading.querySelectorAll('span'), (line) => line.textContent),
-      ),
-      awardRecognition: document
-        .querySelector('.award-card__recognition')
-        ?.textContent?.trim(),
-      parkAnalysisServiceUrl: document
-        .querySelector(
-          '.award-card a[href="https://park-analysis-web-production.up.railway.app/"]',
-        )
-        ?.getAttribute('href'),
-      introTitleFontSize: fontSize(introTitle),
-      organizationTitleFontSize: fontSize(organizationTitle),
-      organizationBodyFontSize: fontSize(organizationBody),
-    };
+  await check('Draconis materials stay collapsed until requested and retain their controls', desktop, async () => {
+    await openRoute(desktop, '#/apps/student');
+    assert.equal(await desktop.locator('.draconis-presentation, .draconis-gallery').count(), 0);
+    const presentationToggle = desktop.locator('.app-resources').getByRole('button', { name: '소개 자료', exact: false });
+    await presentationToggle.click();
+    assert.equal(await presentationToggle.getAttribute('aria-expanded'), 'true');
+    assert.equal(await desktop.locator('.draconis-presentation__thumbnails button').count(), 18);
+    assert.equal(await desktop.locator('.draconis-presentation a[download]').count(), 1);
+    await desktop.getByRole('button', { name: '다음 프레젠테이션 슬라이드', exact: true }).click();
+    assert.equal((await desktop.locator('.draconis-presentation__counter').innerText()).trim(), '2 / 18');
+    const galleryToggle = desktop.locator('.app-resources').getByRole('button', { name: '학습 화면', exact: false });
+    await galleryToggle.click();
+    assert.equal(await desktop.locator('.draconis-presentation').count(), 0);
+    assert.equal(await desktop.locator('.draconis-gallery__item').count(), 27);
+    await galleryToggle.click();
+    assert.equal(await desktop.locator('.draconis-gallery').count(), 0);
   });
-  await desktopPage.screenshot({
-    path: join(outputDirectory, 'desktop-content-intro.png'),
+
+  await check('Draconis slides and screenshots enlarge, zoom, and retain keyboard access', desktop, async () => {
+    await openRoute(desktop, '#/apps/student');
+    for (const kind of ['presentation', 'gallery']) {
+      const label = kind === 'presentation' ? '소개 자료' : '학습 화면';
+      await desktop.locator('.app-resources').getByRole('button', { name: label, exact: false }).click();
+      const panel = desktop.locator(`.draconis-${kind}`);
+      const introduction = panel.locator(kind === 'presentation'
+        ? '.draconis-presentation__copy > p:last-of-type' : '.draconis-gallery__intro');
+      assert.ok(await introduction.evaluate(node => Number.parseFloat(getComputedStyle(node).fontSize)) >= 16,
+        'resource introductions use readable desktop type');
+      if (kind === 'gallery') {
+        await panel.locator('.draconis-gallery__thumbnail').nth(1).click();
+        assert.equal(await desktop.locator('dialog.draconis-image-viewer').count(), 0,
+          'selecting a thumbnail updates the large inline preview');
+        assert.match(await panel.locator('.draconis-gallery__status').innerText(), /2 \/ 27/);
+      }
+      const opener = panel.getByRole('button', { name: '화면 확대', exact: false });
+      await opener.click();
+      const dialog = desktop.locator('dialog.draconis-image-viewer');
+      await dialog.waitFor({ state: 'visible' });
+      assert.equal(await desktop.evaluate(() => document.body.style.overflow), 'hidden');
+      const before = await dialog.locator('.draconis-gallery__dialog-count').innerText();
+      await desktop.keyboard.press('ArrowRight');
+      assert.notEqual(await dialog.locator('.draconis-gallery__dialog-count').innerText(), before,
+        'arrow keys move between images in the expanded viewer');
+      const viewport = dialog.locator('.draconis-image-viewer__viewport');
+      await viewport.locator('img').evaluate(node => node.decode());
+      const fitWidth = await viewport.locator('img').evaluate(node => node.getBoundingClientRect().width);
+      const zoom = dialog.getByRole('button', { name: '글씨 크게', exact: true });
+      await zoom.click();
+      assert.equal(await zoom.getAttribute('aria-pressed'), 'true');
+      assert.ok(await viewport.locator('img').evaluate(node => node.getBoundingClientRect().width) > fitWidth,
+        'reading zoom enlarges the image beyond its fit-to-screen width');
+      assert.ok(await viewport.evaluate(node => node.scrollWidth > node.clientWidth || node.scrollHeight > node.clientHeight),
+        'enlarged content can be panned inside the viewer');
+      const moreZoom = dialog.getByRole('button', { name: '더 크게', exact: true });
+      await moreZoom.click();
+      assert.equal(await moreZoom.getAttribute('aria-pressed'), 'true');
+      await screenshot(desktop, `desktop-draconis-${kind}-zoom.png`);
+      await dialog.getByRole('button', { name: '화면 맞춤', exact: true }).click();
+      assert.equal(await dialog.locator('.is-zoomed').count(), 0);
+      await verifyExternalLinks(desktop);
+      await dialog.getByRole('button', { name: kind === 'presentation' ? '프레젠테이션 닫기' : '갤러리 닫기', exact: true }).focus();
+      await verifyDialogKeyboard(desktop, dialog, opener);
+      assert.notEqual(await desktop.evaluate(() => document.body.style.overflow), 'hidden');
+    }
   });
-  await screenshotSection(
-    desktopPage,
-    '.principle-grid',
-    'desktop-content-principles.png',
-  );
-  await desktopPage.locator('.site-header__nav a[href="#lab-featured"]').click();
-  await waitForSectionAnchor(desktopPage, '#lab-featured');
-  report.desktop.featuredAnchorTop = await desktopPage
-    .locator('#lab-featured')
-    .evaluate((section) => section.getBoundingClientRect().top);
-  await desktopPage.screenshot({
-    path: join(outputDirectory, 'desktop-content-featured.png'),
+
+  await check('app details preserve owner rules and accessible keyboard behavior', desktop, async () => {
+    await openRoute(desktop, '#/apps/student');
+    const card = desktop.locator('.app-card[data-project="draconis"]');
+    const opener = card.getByRole('button', { name: 'DRACONIS 드라코니스 자세히 보기', exact: true });
+    await opener.click();
+    const dialog = desktop.locator('dialog.app-dialog');
+    await dialog.waitFor();
+    assert.match(await dialog.innerText(), /조미진/);
+    assert.doesNotMatch(await dialog.innerText(), /박주현/);
+    await verifyExternalLinks(desktop);
+    await verifyDialogKeyboard(desktop, dialog, opener);
+    await chooseArea(desktop, areas[1]);
+    const safetyOpener = desktop.locator('.app-card[data-project="beyond-radius"]')
+      .getByRole('button', { name: /자세히 보기/ });
+    await safetyOpener.click();
+    assert.doesNotMatch(await desktop.locator('dialog.app-dialog').innerText(), /담당|박동훈|김한일|한희나/);
+    await desktop.keyboard.press('Escape');
   });
-  report.desktop.featured = await desktopPage.evaluate(() => {
-    const grid = document.querySelector('.featured-grid');
-    const draconis = document.querySelector(
-      '.featured-card[data-service="draconis"]',
-    );
-    const secondaryCards = [
-      ...document.querySelectorAll(
-        '.featured-card[data-service="dolsoe"], .featured-card[data-service="seokam-on"], .featured-card[data-service="dolflix"]',
-      ),
+
+  await check('administration integration advice remains available on demand', desktop, async () => {
+    await openRoute(desktop, '#/apps/admin');
+    const direction = desktop.locator('.app-admin-direction');
+    assert.equal(await direction.getAttribute('open'), null);
+    await direction.locator('summary').click();
+    assert.equal(await direction.locator('.app-shortcuts a').count(), 4);
+    assert.match(await direction.innerText(), /검토/);
+    assert.match(await direction.innerText(), /보결관리/);
+    assert.match(await direction.innerText(), /정보화기기/);
+    await verifyExternalLinks(desktop);
+  });
+
+  await check('introduction, awards, and organization have separate views', desktop, async () => {
+    await openRoute(desktop, '#/about');
+    const sections = [
+      { label: '연구소 수상', route: '#/about/awards', selector: '.about-awards' },
+      { label: '운영조직', route: '#/about/organization', selector: '.about-organization' },
+      { label: '연구소 소개', route: '#/about', selector: '.about-intro' },
     ];
-    const width = (element) => element?.getBoundingClientRect().width ?? 0;
-    const tops = secondaryCards.map((card) => card.getBoundingClientRect().top);
-    const widths = secondaryCards.map((card) => card.getBoundingClientRect().width);
-    const presentationRect = draconis
-      ?.querySelector('.draconis-presentation')
-      ?.getBoundingClientRect();
-    const draconisContentRect = draconis
-      ?.querySelector('.featured-card__content')
-      ?.getBoundingClientRect();
-    return {
-      galleryItems: document.querySelectorAll('.draconis-gallery__item').length,
-      galleryTitleFontSize: Number.parseFloat(
-        getComputedStyle(
-          document.querySelector('.draconis-gallery__header h3'),
-        ).fontSize,
-      ),
-      draconisFullWidth: width(draconis) >= width(grid) - 2,
-      draconisMediaCount:
-        draconis?.querySelectorAll('.featured-card__media').length ?? null,
-      presentationLinkCount:
-        draconis?.querySelectorAll('.draconis-presentation a[download]')
-          .length ?? null,
-      presentationHref:
-        draconis
-          ?.querySelector('.draconis-presentation a[download]')
-          ?.getAttribute('href') ?? null,
-      presentationDownload:
-        draconis
-          ?.querySelector('.draconis-presentation a[download]')
-          ?.getAttribute('download') ?? null,
-      presentationSlideImageCount:
-        draconis?.querySelectorAll('.draconis-presentation__stage > img')
-          .length ?? null,
-      presentationThumbnailCount:
-        draconis?.querySelectorAll(
-          '.draconis-presentation__thumbnails button',
-        ).length ?? null,
-      presentationCounter:
-        draconis
-          ?.querySelector('.draconis-presentation__counter')
-          ?.textContent?.trim() ?? null,
-      presentationHorizontalOverflow:
-        presentationRect && draconisContentRect
-          ? Math.max(
-              0,
-              presentationRect.right - draconisContentRect.right,
-              draconisContentRect.left - presentationRect.left,
-            )
-          : null,
-      futureVideoDisabled:
-        draconis?.querySelector(
-          '.draconis-presentation__actions .is-placeholder',
-        )?.disabled ?? null,
-      secondaryCards: secondaryCards.length,
-      secondaryImageFits: secondaryCards.map(
-        (card) =>
-          getComputedStyle(card.querySelector('.featured-card__media img'))
-            .objectFit,
-      ),
-      secondaryTopSpread: tops.length ? Math.max(...tops) - Math.min(...tops) : null,
-      secondaryWidthSpread: widths.length
-        ? Math.max(...widths) - Math.min(...widths)
-        : null,
-      secondaryMediaMaxHeight: Math.max(
-        0,
-        ...secondaryCards.map(
-          (card) =>
-            card.querySelector('.featured-card__media')?.getBoundingClientRect()
-              .height ?? 0,
-        ),
-      ),
-    };
-  });
-  await screenshotSection(
-    desktopPage,
-    '.draconis-presentation',
-    'desktop-content-draconis-presentation.png',
-  );
-  await screenshotSection(
-    desktopPage,
-    '.draconis-gallery',
-    'desktop-content-draconis-gallery.png',
-  );
-  await desktopPage
-    .locator('.draconis-presentation__nav--next')
-    .click();
-  report.desktop.featured.presentationInteraction =
-    await desktopPage.evaluate(() => ({
-      counter:
-        document
-          .querySelector('.draconis-presentation__counter')
-          ?.textContent?.trim() ?? null,
-      image:
-        document
-          .querySelector('.draconis-presentation__stage > img')
-          ?.getAttribute('src') ?? null,
-      activeThumbnail:
-        document.querySelectorAll(
-          '.draconis-presentation__thumbnails button.is-active',
-        ).length,
-    }));
-  await screenshotSection(
-    desktopPage,
-    '.featured-card[data-service="dolsoe"]',
-    'desktop-content-featured-secondary.png',
-  );
-  await desktopPage.locator('.draconis-gallery__thumbnail').first().click();
-  await desktopPage.keyboard.press('ArrowRight');
-  await desktopPage.screenshot({
-    path: join(outputDirectory, 'desktop-content-draconis-gallery-dialog.png'),
-  });
-  report.desktop.featured.galleryDialog = await desktopPage.evaluate(() => {
-    const backdrop = document.querySelector('.draconis-gallery__backdrop');
-    const dialog = document.querySelector('.draconis-gallery__dialog');
-    const closeButton = document.querySelector('.draconis-gallery__dialog-close');
-    const controls = document.querySelector('.draconis-gallery__dialog-controls');
-    const backdropRect = backdrop?.getBoundingClientRect();
-    const dialogRect = dialog?.getBoundingClientRect();
-    const closeButtonRect = closeButton?.getBoundingClientRect();
-    const controlsRect = controls?.getBoundingClientRect();
-
-    return {
-      open: document.querySelectorAll('.draconis-gallery__dialog').length,
-      count: document.querySelector('.draconis-gallery__dialog-count')?.textContent?.trim(),
-      portalToBody: backdrop?.parentElement === document.body,
-      viewportHeight: window.innerHeight,
-      backdropTop: backdropRect?.top,
-      backdropBottom: backdropRect?.bottom,
-      dialogTop: dialogRect?.top,
-      dialogBottom: dialogRect?.bottom,
-      closeButtonTop: closeButtonRect?.top,
-      controlsBottom: controlsRect?.bottom,
-    };
-  });
-  await desktopPage.keyboard.press('Escape');
-  report.desktop.featured.galleryDialog.closed =
-    (await desktopPage.locator('.draconis-gallery__dialog').count()) === 0;
-
-  await desktopPage.locator('.site-header__nav a[href="#lab-awards"]').click();
-  await waitForSectionAnchor(desktopPage, '#lab-awards');
-  report.desktop.awardsAnchor = await desktopPage.evaluate(() => {
-    const featured = document.querySelector('#lab-featured');
-    const awards = document.querySelector('#lab-awards');
-    const heading = document.querySelector('#lab-awards h2');
-    const featuredRect = featured?.getBoundingClientRect();
-    const awardsRect = awards?.getBoundingClientRect();
-    return {
-      scrollY: window.scrollY,
-      featuredTop: featuredRect?.top,
-      featuredBottom: featuredRect?.bottom,
-      awardsTop: awardsRect?.top,
-      awardsBottom: awardsRect?.bottom,
-      awardsHeadingTop: heading?.getBoundingClientRect().top,
-      awardsBackground: awards ? getComputedStyle(awards).backgroundImage : null,
-    };
-  });
-  await desktopPage.screenshot({
-    path: join(outputDirectory, 'desktop-content-awards.png'),
-  });
-  await screenshotSection(
-    desktopPage,
-    '.award-card:nth-child(2)',
-    'desktop-content-award-dolsoe.png',
-  );
-
-  await desktopPage.locator('.site-header__nav a[href="#lab-services"]').click();
-  await waitForSectionAnchor(desktopPage, '#lab-services');
-  await desktopPage
-    .locator('.portfolio-filter button', { hasText: '학습앱' })
-    .click();
-  await desktopPage.waitForTimeout(250);
-  report.desktop.portfolioFilter = {
-    learningCards: await desktopPage.locator('.project-card').count(),
-    pressed: await desktopPage
-      .locator('.portfolio-filter button', { hasText: '학습앱' })
-      .getAttribute('aria-pressed'),
-  };
-  await desktopPage.screenshot({
-    path: join(outputDirectory, 'desktop-content-portfolio.png'),
+    for (const section of sections) {
+      const panel = await openMenu(desktop, '연구소 소개');
+      await panel.getByRole('link', { name: section.label, exact: false }).click();
+      await waitForRoute(desktop, section.route);
+      assert.equal(await desktop.locator(section.selector).count(), 1);
+      assert.equal(await desktop.locator('.about-intro, .about-awards, .about-organization').count(), 1);
+      if (section.label === '운영조직') {
+        assert.match(await desktop.locator(section.selector).innerText(), /조미진|박동훈|김한일/,
+          'organizational staff names remain');
+      }
+      if (section.label === '연구소 수상') await verifyAwardEvidence(desktop);
+      await verifyExternalLinks(desktop);
+    }
   });
 
-  await desktopPage.locator('.site-header__nav a[href="#lab-organization"]').click();
-  await waitForSectionAnchor(desktopPage, '#lab-organization');
-  report.desktop.organizationAnchorTop = await desktopPage
-    .locator('#lab-organization')
-    .evaluate((section) => section.getBoundingClientRect().top);
-  await desktopPage.screenshot({
-    path: join(outputDirectory, 'desktop-content-organization.png'),
+  await check('homepage has a full-width static hero and four working overview cards', desktop, async () => {
+    await openRoute(desktop, '#/about');
+    assert.equal(await desktop.locator('.about-workspace video, .about-film, .about-film-trigger, .about-ambient__toggle').count(), 0);
+    assert.equal(await desktop.getByRole('button', { name: '연구소 영상 보기', exact: true }).count(), 0);
+    const hero = desktop.locator('.about-hero');
+    const image = hero.locator('img');
+    assert.equal(await image.count(), 1);
+    assert.equal(await image.getAttribute('src'), '/assets/scene1_dol_ai_lab.png');
+    await image.evaluate(node => node.decode());
+    const heroBounds = await hero.boundingBox();
+    const imageBounds = await image.boundingBox();
+    const copyBounds = await hero.locator('.about-hero__copy').boundingBox();
+    assert.equal(await hero.locator('.about-hero__glass').count(), 0);
+    assert.equal(await desktop.locator('.about-topline, .about-tabs').count(), 0,
+      'the homepage avoids duplicating the two top-level navigation menus');
+    const shade = hero.locator('.about-hero__shade');
+    assert.equal(await shade.count(), 1);
+    assert.notEqual(await shade.evaluate(node => getComputedStyle(node).backgroundImage), 'none',
+      'the static image has a gradient behind the large introduction copy');
+    assert.ok(heroBounds && imageBounds && copyBounds);
+    assert.ok(heroBounds.x <= 1 && heroBounds.width >= 1438,
+      'the homepage hero stretches across the desktop viewport');
+    assert.ok(imageBounds.width >= heroBounds.width * .9 && imageBounds.height >= heroBounds.height * .9,
+      'the first-scene image fills the hero behind its text');
+    assert.ok(await hero.locator('h1').evaluate(node => Number.parseFloat(getComputedStyle(node).fontSize)) >= 56,
+      'the desktop hero uses a prominent headline');
+    assert.ok(copyBounds.x >= heroBounds.x - 1 && copyBounds.x < heroBounds.x + heroBounds.width / 2 &&
+      copyBounds.x + copyBounds.width <= heroBounds.x + heroBounds.width &&
+      copyBounds.y >= imageBounds.y && copyBounds.y < imageBounds.y + imageBounds.height,
+    'the introduction copy sits over the left part of the background image');
+    const highlights = desktop.locator('.about-highlights');
+    assert.equal(await highlights.locator('a[data-highlight]').count(), 4);
+    const highlightsBounds = await highlights.boundingBox();
+    assert.ok(highlightsBounds && highlightsBounds.y < heroBounds.y + heroBounds.height &&
+      highlightsBounds.y + highlightsBounds.height > heroBounds.y + heroBounds.height,
+    'the overview cards overlap the lower edge of the hero');
+    const primaryLink = hero.getByRole('link', { name: '앱 둘러보기', exact: false });
+    await primaryLink.click();
+    await waitForRoute(desktop, '#/apps');
+    await desktop.goBack();
+    await waitForRoute(desktop, '#/about');
+    await desktop.locator('.about-hero').getByRole('link', { name: '연구소 수상', exact: false }).click();
+    await waitForRoute(desktop, '#/about/awards');
+    assert.equal(await desktop.locator('.about-tabs').count(), 1,
+      'secondary about navigation remains available on the awards page');
+    await desktop.goBack();
+    await waitForRoute(desktop, '#/about');
+    const destinations = [
+      { id: 'student', count: 10, route: '#/apps/student' },
+      { id: 'safety', count: 5, route: '#/apps/safety' },
+      { id: 'admin', count: 8, route: '#/apps/admin' },
+      { id: 'awards', count: 2, route: '#/about/awards' },
+    ];
+    for (const destination of destinations) {
+      const link = desktop.locator(`.about-highlights a[data-highlight="${destination.id}"]`);
+      assert.equal(await link.getAttribute('href'), destination.route);
+      assert.equal(Number.parseInt(await link.locator('.about-highlight__value').innerText(), 10), destination.count,
+        'overview counts match the real app and award inventories');
+      await link.click();
+      await waitForRoute(desktop, destination.route);
+      await desktop.goBack();
+      await waitForRoute(desktop, '#/about');
+    }
+  });
+
+  await check('responsive desktop and tablet views avoid horizontal overflow', desktop, async () => {
+    for (const width of [1440, 900]) {
+      await desktop.setViewportSize({ width, height: 900 });
+      for (const route of ['#/about', '#/apps/student', '#/apps/admin', '#/about/awards', '#/about/organization']) {
+        await openRoute(desktop, route);
+        const dimensions = await desktop.evaluate(() => ({
+          width: innerWidth, contentWidth: document.documentElement.scrollWidth,
+          viewportWidth: document.documentElement.clientWidth,
+        }));
+        report.responsive.push({ route, ...dimensions });
+        assert.ok(dimensions.contentWidth <= dimensions.viewportWidth + 1,
+          `${route} overflows at ${width}px`);
+        if (route === '#/about/awards') await screenshot(desktop, `awards-${width}.png`, true);
+        if (route === '#/about' && width === 900) await screenshot(desktop, 'tablet-static-homepage.png');
+      }
+    }
   });
   await desktopContext.close();
 
-  const tabletContext = await browser.newContext({
-    viewport: { width: 900, height: 900 },
-    deviceScaleFactor: 1,
-    reducedMotion: 'no-preference',
-  });
-  const tabletPage = await tabletContext.newPage();
-  watchPage(tabletPage, 'tablet');
-  await tabletPage.goto(baseUrl, { waitUntil: 'domcontentloaded' });
-  await tabletPage.locator('.site-header__nav a[href="#lab-intro"]').click();
-  await waitForSectionAnchor(tabletPage, '#lab-intro');
-  report.tablet = await tabletPage.evaluate(() => {
-    const grid = document.querySelector('.principle-grid');
-    const cards = [...document.querySelectorAll('.principle-grid article')];
-    const tops = cards.map((card) => card.getBoundingClientRect().top);
-    return {
-      viewport: [window.innerWidth, window.innerHeight],
-      cards: cards.length,
-      display: grid ? getComputedStyle(grid).display : null,
-      topSpread: tops.length ? Math.max(...tops) - Math.min(...tops) : null,
-      railOverflow: grid ? grid.scrollWidth > grid.clientWidth + 1 : null,
-      pageOverflow:
-        document.documentElement.scrollWidth >
-        document.documentElement.clientWidth + 1,
-      titleWordBreak: cards[0]
-        ? getComputedStyle(cards[0].querySelector('h3')).wordBreak
-        : null,
-    };
-  });
-  await tabletPage.screenshot({
-    path: join(outputDirectory, 'tablet-content-intro.png'),
-  });
-  await tabletContext.close();
-
   const mobileContext = await browser.newContext({
-    viewport: { width: 390, height: 844 },
-    deviceScaleFactor: 1,
-    isMobile: true,
-    hasTouch: true,
-    reducedMotion: 'no-preference',
+    viewport: { width: 390, height: 844 }, deviceScaleFactor: 1,
+    isMobile: true, hasTouch: true, reducedMotion: 'reduce',
   });
-  const mobilePage = await mobileContext.newPage();
-  watchPage(mobilePage, 'mobile');
-  await mobilePage.goto(baseUrl, { waitUntil: 'domcontentloaded' });
-  await waitForMaster(mobilePage);
-  await scrollToProgress(mobilePage, 11.5 / 44);
-  report.mobile = await mobilePage.evaluate(() => {
-    const video = document.querySelector('.world-film');
-    const intro = document.querySelector('.intro-loop');
-    const poster = document.querySelector('.poster-layer.is-active .poster-layer__image');
-    return {
-      viewport: [window.innerWidth, window.innerHeight],
-      currentTime: video?.currentTime,
-      duration: video?.duration,
-      videoFit: video ? getComputedStyle(video).objectFit : null,
-      posterFit: poster ? getComputedStyle(poster).objectFit : null,
-      videoClass: video?.className,
-      videoSourceVariant: video?.dataset.sourceVariant,
-      introFit: intro ? getComputedStyle(intro).objectFit : null,
-      introSource: intro?.currentSrc,
-      posterSource: poster?.getAttribute('src'),
-      sceneButtons: document.querySelectorAll('.journey-progress button').length,
-      menuLinks: document.querySelectorAll('.site-header__nav a').length,
-    };
+  const mobile = await mobileContext.newPage();
+  watchPage(mobile, 'mobile');
+  await check('reduced-motion visitors get a static introduction and final entry', mobile, async () => {
+    await mobile.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+    await mobile.locator('.intro-site .reduced-world').waitFor();
+    const shortcut = mobile.getByRole('link', { name: '홈페이지 바로가기', exact: false });
+    const shortcutBounds = await shortcut.boundingBox();
+    assert.ok(shortcutBounds && shortcutBounds.height >= 50 && shortcutBounds.x >= 0 && shortcutBounds.x + shortcutBounds.width <= 391);
+    assert.ok(await shortcut.evaluate(node => Number.parseFloat(getComputedStyle(node).fontSize)) >= 15);
+    assert.equal(await mobile.locator('.reduced-scene').count(), 5);
+    assert.equal(await mobile.locator('.world-film, .intro-loop, .app-workspace, .about-workspace').count(), 0);
+    const enter = mobile.locator('.reduced-ending--logo').getByRole('link', { name: '홈페이지 들어가기', exact: false });
+    await enter.scrollIntoViewIfNeeded();
+    const bounds = await enter.boundingBox();
+    assert.ok(bounds && bounds.x >= 0 && bounds.x + bounds.width <= 391 && bounds.height >= 44);
+    assert.equal(await mobile.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+    await screenshot(mobile, 'mobile-static-intro-end.png');
+    await enter.click();
+    await waitForRoute(mobile, '#/about');
   });
-  await mobilePage.screenshot({
-    path: join(outputDirectory, 'mobile-scene.png'),
+
+  await check('mobile animated introduction and final entry fit the viewport', mobile, async () => {
+    await mobile.emulateMedia({ reducedMotion: 'no-preference' });
+    await openRoute(mobile, '#/intro');
+    await mobile.locator('.world-film[data-source-variant="mobile"]').waitFor();
+    assert.equal(await mobile.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+    await mobile.locator('.intro-main').focus();
+    await mobile.keyboard.press('End');
+    const enter = mobile.getByRole('link', { name: '홈페이지 들어가기', exact: false });
+    await enter.waitFor({ state: 'visible', timeout: 30_000 });
+    for (const viewport of [{ width: 390, height: 844 }, { width: 844, height: 390 }]) {
+      await mobile.setViewportSize(viewport);
+      await mobile.locator('.intro-main').focus();
+      await mobile.keyboard.press('End');
+      await enter.waitFor({ state: 'visible', timeout: 30_000 });
+      const bounds = await enter.boundingBox();
+      assert.ok(bounds && bounds.x >= 0 && bounds.x + bounds.width <= viewport.width + 1 && bounds.y >= 0 && bounds.y + bounds.height <= viewport.height + 1,
+        `the entry action stays entirely inside the ${viewport.width}×${viewport.height} mobile viewport`);
+      assert.equal(await mobile.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+      await screenshot(mobile, viewport.width === 390 ? 'mobile-animated-intro-end.png' : 'mobile-landscape-intro-end.png');
+    }
+    await enter.click();
+    await waitForRoute(mobile, '#/about');
+    await mobile.setViewportSize({ width: 390, height: 844 });
+    await mobile.emulateMedia({ reducedMotion: 'reduce' });
   });
-  await mobilePage.locator('.site-header__nav a[href="#lab-intro"]').click();
-  await waitForSectionAnchor(mobilePage, '#lab-intro');
-  report.mobile.content = await mobilePage.evaluate(() => ({
-    introTop: document.querySelector('#lab-intro')?.getBoundingClientRect().top,
-    featuredColumns: getComputedStyle(
-      document.querySelector('.featured-grid'),
-    ).gridTemplateColumns,
-    horizontalOverflow:
-      document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
-  }));
-  await mobilePage.screenshot({
-    path: join(outputDirectory, 'mobile-content-intro.png'),
+
+  await check('mobile navigation, cards, dialogs, and layout remain usable', mobile, async () => {
+    await openRoute(mobile, '#/about');
+    assert.equal(await mobile.locator('.about-workspace video, .about-film-trigger').count(), 0,
+      'the homepage stays static on mobile as well');
+    for (const width of [390, 320]) {
+      await mobile.setViewportSize({ width, height: 844 });
+      assert.equal(await mobile.locator('.site-header').getAttribute('data-theme'), null);
+      assert.equal(await mobile.locator('.about-tabs').count(), 0);
+      assert.equal(await mobile.locator('.about-highlights a[data-highlight]').count(), 4);
+      assert.equal(await mobile.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+      for (const element of await mobile.locator('.site-header__nav button, .about-highlights a[data-highlight]').all()) {
+        const bounds = await element.boundingBox();
+        assert.ok(bounds && bounds.x >= -1 && bounds.x + bounds.width <= width + 1,
+          `navigation and overview cards stay within the ${width}px viewport`);
+      }
+      assert.ok(await mobile.locator('.about-hero h1').evaluate(node => Number.parseFloat(getComputedStyle(node).fontSize)) >= 32);
+      await screenshot(mobile, `homepage-${width}.png`, true);
+    }
+    await menuButton(mobile, '전체 앱').focus();
+    await mobile.keyboard.press('ArrowDown');
+    const mobilePanel = mobile.locator('#nav-panel-apps');
+    await mobilePanel.waitFor();
+    const panelBounds = await mobilePanel.boundingBox();
+    assert.ok(panelBounds && panelBounds.x >= 0 && panelBounds.x + panelBounds.width <= 321);
+    await mobile.keyboard.press('Escape');
+    assert.equal(await menuButton(mobile, '전체 앱').getAttribute('aria-expanded'), 'false');
+    await mobile.locator('.about-highlights a[data-highlight="safety"]').click();
+    await waitForRoute(mobile, '#/apps/safety');
+    await mobile.goBack();
+    await waitForRoute(mobile, '#/about');
+    await mobile.setViewportSize({ width: 390, height: 844 });
+    await screenshot(mobile, 'mobile-start.png');
+    await openMenu(mobile, '전체 앱');
+    await screenshot(mobile, 'mobile-app-menu.png');
+    for (const area of areas) {
+      await chooseArea(mobile, area);
+      for (const image of await mobile.locator('.app-feature__image img').all()) {
+        const bounds = await image.locator('..').boundingBox();
+        assert.ok(bounds && bounds.width >= 260 && bounds.height >= 190,
+          'mobile keeps a large representative image instead of hiding it');
+        assert.ok(await image.isVisible());
+      }
+      const dimensions = await mobile.evaluate(() => ({
+        width: innerWidth, contentWidth: document.documentElement.scrollWidth,
+        viewportWidth: document.documentElement.clientWidth,
+      }));
+      report.responsive.push({ route: `#/apps/${area.id}`, ...dimensions });
+      assert.ok(dimensions.contentWidth <= dimensions.viewportWidth + 1);
+      if (area.id === 'student') await screenshot(mobile, 'mobile-student.png');
+    }
+    await chooseArea(mobile, areas[0]);
+    const opener = mobile.locator('.app-card[data-project="draconis"]')
+      .getByRole('button', { name: /자세히 보기/ });
+    await opener.click();
+    const dialog = mobile.locator('dialog.app-dialog');
+    const bounds = await dialog.boundingBox();
+    assert.ok(bounds && bounds.x >= 0 && bounds.x + bounds.width <= 391);
+    await mobile.getByRole('button', { name: '앱 상세 닫기', exact: true }).click();
+    await dialog.waitFor({ state: 'hidden' });
+    await openRoute(mobile, '#/about/awards');
+    await verifyAwardEvidence(mobile);
+    assert.equal(await mobile.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+    await screenshot(mobile, 'awards-390.png', true);
+    await openRoute(mobile, '#/about/organization');
+    await mobile.reload({ waitUntil: 'domcontentloaded' });
+    await waitForRoute(mobile, '#/about/organization');
+    const overflow = await mobile.evaluate(() =>
+      document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
+    assert.equal(overflow, false);
+    await verifyExternalLinks(mobile);
   });
-  await mobilePage.locator('.site-header__nav a[href="#lab-featured"]').click();
-  await waitForSectionAnchor(mobilePage, '#lab-featured');
-  report.mobile.presentation = await mobilePage.evaluate(() => {
-    const presentation = document.querySelector('.draconis-presentation');
-    const stage = document.querySelector('.draconis-presentation__stage');
-    const thumbnails = document.querySelector(
-      '.draconis-presentation__thumbnails',
-    );
-    const presentationRect = presentation?.getBoundingClientRect();
-    const stageRect = stage?.getBoundingClientRect();
-    return {
-      slideCount: document.querySelectorAll(
-        '.draconis-presentation__thumbnails button',
-      ).length,
-      stageWithinPresentation:
-        presentationRect && stageRect
-          ? stageRect.left >= presentationRect.left - 1 &&
-            stageRect.right <= presentationRect.right + 1
-          : null,
-      thumbnailRailOverflow:
-        thumbnails?.scrollWidth > thumbnails?.clientWidth + 1,
-      pageOverflow:
-        document.documentElement.scrollWidth >
-        document.documentElement.clientWidth + 1,
-    };
-  });
-  await screenshotSection(
-    mobilePage,
-    '.draconis-presentation',
-    'mobile-content-draconis-presentation.png',
-  );
-  await mobilePage.locator('.site-header__nav a[href="#lab-organization"]').click();
-  await waitForSectionAnchor(mobilePage, '#lab-organization');
-  report.mobile.organizationTop = await mobilePage
-    .locator('#lab-organization')
-    .evaluate((section) => section.getBoundingClientRect().top);
-  await mobilePage.screenshot({
-    path: join(outputDirectory, 'mobile-content-organization.png'),
+
+  await check('mobile Draconis reading surfaces and zoom stay inside the screen', mobile, async () => {
+    await openRoute(mobile, '#/apps/student');
+    for (const kind of ['presentation', 'gallery']) {
+      await mobile.locator('.app-resources').getByRole('button', {
+        name: kind === 'presentation' ? '소개 자료' : '학습 화면', exact: false,
+      }).click();
+      const panel = mobile.locator(`.draconis-${kind}`);
+      const introduction = panel.locator(kind === 'presentation'
+        ? '.draconis-presentation__copy > p:last-of-type' : '.draconis-gallery__intro');
+      assert.ok(await introduction.evaluate(node => Number.parseFloat(getComputedStyle(node).fontSize)) >= 15);
+      const opener = panel.getByRole('button', { name: '화면 확대', exact: false });
+      await opener.click();
+      const dialog = mobile.locator('dialog.draconis-image-viewer');
+      await dialog.waitFor();
+      const bounds = await dialog.boundingBox();
+      assert.ok(bounds && bounds.x >= 0 && bounds.y >= 0 && bounds.x + bounds.width <= 391 && bounds.y + bounds.height <= 845);
+      await dialog.getByRole('button', { name: '글씨 크게', exact: true }).click();
+      assert.ok(await dialog.locator('.draconis-image-viewer__viewport').evaluate(node => node.scrollWidth > node.clientWidth || node.scrollHeight > node.clientHeight));
+      assert.equal(await mobile.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+      await screenshot(mobile, `mobile-draconis-${kind}-zoom.png`);
+      await dialog.getByRole('button', { name: kind === 'presentation' ? '프레젠테이션 닫기' : '갤러리 닫기', exact: true }).click();
+      assert.equal(await opener.evaluate(node => node === document.activeElement), true);
+    }
   });
   await mobileContext.close();
-
-  const reducedContext = await browser.newContext({
-    viewport: { width: 1280, height: 800 },
-    reducedMotion: 'reduce',
-  });
-  const reducedPage = await reducedContext.newPage();
-  watchPage(reducedPage, 'reduced-motion');
-  await reducedPage.goto(baseUrl, { waitUntil: 'domcontentloaded' });
-  report.reducedMotion = await reducedPage.evaluate(() => ({
-    h1: document.querySelector('h1')?.textContent?.trim(),
-    worldVideoCount: document.querySelectorAll('.scroll-world video').length,
-    presentationLinkCount: document.querySelectorAll(
-      '.draconis-presentation a[download]',
-    ).length,
-    sceneCount: document.querySelectorAll('.reduced-scene').length,
-    copyPanelCount: document.querySelectorAll('.reduced-scene__copy').length,
-    copyPanelBackground: getComputedStyle(
-      document.querySelector('.reduced-scene__copy'),
-    ).backgroundColor,
-    endingCount: document.querySelectorAll('.reduced-ending').length,
-    motionControlCount: document.querySelectorAll(
-      '.motion-preference--static',
-    ).length,
-    motionControlTop: document
-      .querySelector('.motion-preference--static')
-      ?.getBoundingClientRect().top,
-    headerBottom: document.querySelector('.site-header')?.getBoundingClientRect().bottom,
-  }));
-  await reducedPage.locator('.motion-preference--static').click();
-  await reducedPage.waitForFunction(
-    () =>
-      document.documentElement.dataset.motionPreference === 'animated' &&
-      document.querySelectorAll('.scroll-world video').length === 2,
-    { timeout: 10_000 },
-  );
-  await waitForMaster(reducedPage);
-  report.reducedMotion.animatedOverride = await reducedPage.evaluate(() => ({
-    motionPreference: document.documentElement.dataset.motionPreference,
-    worldVideoCount: document.querySelectorAll('.scroll-world video').length,
-    returnControlCount: document.querySelectorAll(
-      '.motion-preference--animated',
-    ).length,
-  }));
-  await reducedPage.locator('.motion-preference--animated').click();
-  await reducedPage.waitForFunction(
-    () =>
-      document.documentElement.dataset.motionPreference === 'system' &&
-      document.querySelectorAll('.reduced-scene').length === 5,
-    { timeout: 10_000 },
-  );
-  report.reducedMotion.returnedToStatic = true;
-  await reducedPage.screenshot({
-    path: join(outputDirectory, 'reduced-motion.png'),
-  });
-  await reducedContext.close();
-
-  const hashContext = await browser.newContext({
-    viewport: { width: 1440, height: 900 },
-    deviceScaleFactor: 1,
-    reducedMotion: 'reduce',
-  });
-  const hashPage = await hashContext.newPage();
-  watchPage(hashPage, 'hash-desktop');
-  await hashPage.goto(new URL('#lab-awards', `${baseUrl}/`).href, {
-    waitUntil: 'domcontentloaded',
-  });
-  report.hashNavigation.desktopDirect = await waitForStableHashAnchor(
-    hashPage,
-    '#lab-awards',
-  );
-  await hashPage.reload({ waitUntil: 'domcontentloaded' });
-  report.hashNavigation.desktopReload = await waitForStableHashAnchor(
-    hashPage,
-    '#lab-awards',
-  );
-
-  await hashPage.evaluate(() => {
-    window.location.hash = '#lab-services';
-  });
-  report.hashNavigation.hashChange = await waitForStableHashAnchor(
-    hashPage,
-    '#lab-services',
-  );
-  await hashPage.goBack();
-  report.hashNavigation.historyBack = await waitForStableHashAnchor(
-    hashPage,
-    '#lab-awards',
-  );
-  await hashPage.goForward();
-  report.hashNavigation.historyForward = await waitForStableHashAnchor(
-    hashPage,
-    '#lab-services',
-  );
-  await hashContext.close();
-
-  const hashMobileContext = await browser.newContext({
-    viewport: { width: 390, height: 844 },
-    deviceScaleFactor: 1,
-    isMobile: true,
-    hasTouch: true,
-    reducedMotion: 'reduce',
-  });
-  const hashMobilePage = await hashMobileContext.newPage();
-  watchPage(hashMobilePage, 'hash-mobile');
-  await hashMobilePage.goto(
-    new URL('#lab-organization', `${baseUrl}/`).href,
-    { waitUntil: 'domcontentloaded' },
-  );
-  report.hashNavigation.mobileDirect = await waitForStableHashAnchor(
-    hashMobilePage,
-    '#lab-organization',
-  );
-  await hashMobileContext.close();
-
-  const hashAnimatedContext = await browser.newContext({
-    viewport: { width: 1440, height: 900 },
-    deviceScaleFactor: 1,
-    reducedMotion: 'no-preference',
-  });
-  const hashAnimatedPage = await hashAnimatedContext.newPage();
-  await hashAnimatedPage.goto(new URL('#lab-intro', `${baseUrl}/`).href, {
-    waitUntil: 'domcontentloaded',
-  });
-  report.hashNavigation.animatedDirect = await waitForStableHashAnchor(
-    hashAnimatedPage,
-    '#lab-intro',
-  );
-  await hashAnimatedContext.close();
 } finally {
   await browser.close();
+  report.passed = report.checks.length > 0 && report.checks.every((item) => item.passed) &&
+    ['consoleErrors', 'pageErrors', 'httpErrors', 'failedRequests'].every((key) => report[key].length === 0);
+  await writeFile(join(outputDirectory, 'browser-qa.json'), `${JSON.stringify(report, null, 2)}\n`);
+  console.log(JSON.stringify(report, null, 2));
+  if (!report.passed) process.exitCode = 1;
 }
-
-report.passed =
-  report.desktop.reverse?.passed === true &&
-  report.desktop.start?.menuLinks === 5 &&
-  report.desktop.start?.mainCount === 1 &&
-  report.desktop.start?.introAutoplay === true &&
-  report.desktop.start?.introLoop === true &&
-  report.desktop.start?.introMuted === true &&
-  report.desktop.start?.introMotion === true &&
-  report.desktop.start?.scrollCueLabel === '아래로 스크롤' &&
-  report.desktop.start?.scrollCueHeight >= 50 &&
-  report.desktop.start?.scrollCueFontSize >= 14 &&
-  report.desktop.originalBand?.opacity === '1' &&
-  report.desktop.originalBand?.introOpacity === '0' &&
-  report.desktop.originalBand?.introPaused === true &&
-  report.desktop.originalBand?.copyClass?.includes('scene-copy--emphasis') &&
-  report.desktop.originalBand?.copyOpacity > 0.5 &&
-  report.desktop.sceneCopyPanels?.length === 4 &&
-  report.desktop.sceneCopyPanels?.every(
-    (item) =>
-      item.className?.includes('scene-copy--emphasis') &&
-      item.background === 'rgba(3, 15, 31, 0.76)' &&
-      item.headingWordBreak === 'keep-all' &&
-      item.subtitleWordBreak === 'keep-all',
-  ) &&
-  report.desktop.sceneFive?.activeCopyCount === 0 &&
-  report.desktop.sceneFive?.originalPosterCount >= 1 &&
-  report.desktop.ending?.brandCount === 1 &&
-  report.desktop.ending?.text?.includes('돌 AI연구소') &&
-  report.desktop.content?.menuLabels?.join('|') ===
-    '연구소 소개|대표 서비스|연구소 수상|서비스 포트폴리오|운영조직' &&
-  report.desktop.content?.introTop >= 0 &&
-  report.desktop.content?.introTop < 140 &&
-  report.desktop.featuredAnchorTop >= 0 &&
-  report.desktop.featuredAnchorTop < 140 &&
-  report.desktop.awardsAnchor?.awardsTop >= 0 &&
-  report.desktop.awardsAnchor?.awardsTop < 140 &&
-  report.desktop.organizationAnchorTop >= 0 &&
-  report.desktop.organizationAnchorTop < 140 &&
-  report.desktop.content?.sectionOrder?.every(
-    (offset, index, offsets) => index === 0 || offset > offsets[index - 1],
-  ) &&
-  report.desktop.content?.operatingModels === 0 &&
-  report.desktop.content?.organizationGroups === 4 &&
-  report.desktop.content?.roadmaps === 0 &&
-  report.desktop.content?.removedRoadmapCopy === true &&
-  report.desktop.content?.principleCards === 4 &&
-  report.desktop.content?.principleBodies === 0 &&
-  report.desktop.content?.principleColumns === 4 &&
-  report.desktop.content?.featuredCards === 4 &&
-  report.desktop.content?.awardCards === 2 &&
-  report.desktop.content?.portfolioCards === 13 &&
-  report.desktop.content?.portfolioFilters === 5 &&
-  report.desktop.content?.credentialLeak === false &&
-  report.desktop.content?.contentWordBreak === 'keep-all' &&
-  report.desktop.content?.awardWordBreak === 'keep-all' &&
-  report.desktop.content?.awardTitleLineSets?.[0]?.join('|') ===
-    '반경 너머,|도달 가능성으로' &&
-  report.desktop.content?.awardTitleLineSets?.[1]?.join('|') ===
-    'AI 학교 사업 계획|법령 검토 비서,|돌쇠' &&
-  report.desktop.content?.awardRecognition ===
-    '범정부 공공데이터 AI활용 창업경진대회 교육부 추천 출품작(단독 1팀)' &&
-  report.desktop.content?.parkAnalysisServiceUrl ===
-    'https://park-analysis-web-production.up.railway.app/' &&
-  report.desktop.content?.introTitleFontSize <= 80 &&
-  report.desktop.content?.organizationTitleFontSize <= 52 &&
-  report.desktop.content?.organizationBodyFontSize >= 15 &&
-  report.desktop.featured?.galleryItems === 27 &&
-  report.desktop.featured?.galleryTitleFontSize <= 17 &&
-  report.desktop.featured?.draconisFullWidth === true &&
-  report.desktop.featured?.draconisMediaCount === 0 &&
-  report.desktop.featured?.presentationLinkCount === 1 &&
-  report.desktop.featured?.presentationHref ===
-    '/assets/lab/draconis-presentation-2026-07-31.ppsm' &&
-  report.desktop.featured?.presentationDownload ===
-    'draconis-presentation(2026.07.31).ppsm' &&
-  report.desktop.featured?.presentationSlideImageCount === 1 &&
-  report.desktop.featured?.presentationThumbnailCount === 18 &&
-  report.desktop.featured?.presentationCounter === '1 / 18' &&
-  report.desktop.featured?.presentationHorizontalOverflow <= 1 &&
-  report.desktop.featured?.presentationInteraction?.counter === '2 / 18' &&
-  report.desktop.featured?.presentationInteraction?.image ===
-    '/assets/lab/draconis-presentation/slides/slide-02.jpg' &&
-  report.desktop.featured?.presentationInteraction?.activeThumbnail === 1 &&
-  report.desktop.featured?.futureVideoDisabled === true &&
-  report.desktop.featured?.secondaryCards === 3 &&
-  report.desktop.featured?.secondaryImageFits?.join('|') ===
-    'cover|cover|cover' &&
-  report.desktop.featured?.secondaryTopSpread <= 1 &&
-  report.desktop.featured?.secondaryWidthSpread <= 2 &&
-  report.desktop.featured?.secondaryMediaMaxHeight <= 180 &&
-  report.desktop.featured?.galleryDialog?.open === 1 &&
-  report.desktop.featured?.galleryDialog?.count === '2 / 27' &&
-  report.desktop.featured?.galleryDialog?.portalToBody === true &&
-  report.desktop.featured?.galleryDialog?.backdropTop === 0 &&
-  report.desktop.featured?.galleryDialog?.backdropBottom ===
-    report.desktop.featured?.galleryDialog?.viewportHeight &&
-  report.desktop.featured?.galleryDialog?.dialogTop >= 8 &&
-  report.desktop.featured?.galleryDialog?.dialogBottom <=
-    report.desktop.featured?.galleryDialog?.viewportHeight - 8 &&
-  report.desktop.featured?.galleryDialog?.closeButtonTop >= 8 &&
-  report.desktop.featured?.galleryDialog?.controlsBottom <=
-    report.desktop.featured?.galleryDialog?.viewportHeight - 8 &&
-  report.desktop.featured?.galleryDialog?.closed === true &&
-  report.desktop.portfolioFilter?.learningCards === 5 &&
-  report.desktop.portfolioFilter?.pressed === 'true' &&
-  report.tablet.cards === 4 &&
-  report.tablet.display === 'grid' &&
-  report.tablet.topSpread <= 1 &&
-  report.tablet.railOverflow === true &&
-  report.tablet.pageOverflow === false &&
-  report.tablet.titleWordBreak === 'keep-all' &&
-  report.mobile.videoFit === 'contain' &&
-  report.mobile.videoSourceVariant === 'mobile' &&
-  report.mobile.introSource?.endsWith(
-    '/generated/hero/dol-ai-lab-living-loop-mobile.mp4',
-  ) &&
-  report.mobile.introFit === 'contain' &&
-  report.mobile.posterFit === 'contain' &&
-  report.mobile.menuLinks === 5 &&
-  report.mobile.content?.introTop >= 0 &&
-  report.mobile.content?.introTop < 140 &&
-  report.mobile.organizationTop >= 0 &&
-  report.mobile.organizationTop < 140 &&
-  report.mobile.content?.horizontalOverflow === false &&
-  report.mobile.presentation?.slideCount === 18 &&
-  report.mobile.presentation?.stageWithinPresentation === true &&
-  report.mobile.presentation?.thumbnailRailOverflow === true &&
-  report.mobile.presentation?.pageOverflow === false &&
-  report.reducedMotion.worldVideoCount === 0 &&
-  report.reducedMotion.motionControlCount === 1 &&
-  report.reducedMotion.motionControlTop >= report.reducedMotion.headerBottom &&
-  report.reducedMotion.animatedOverride?.motionPreference === 'animated' &&
-  report.reducedMotion.animatedOverride?.worldVideoCount === 2 &&
-  report.reducedMotion.animatedOverride?.returnControlCount === 1 &&
-  report.reducedMotion.returnedToStatic === true &&
-  report.reducedMotion.presentationLinkCount === 1 &&
-  report.reducedMotion.sceneCount === 5 &&
-  report.reducedMotion.copyPanelCount === 4 &&
-  report.reducedMotion.copyPanelBackground === 'rgba(3, 15, 31, 0.76)' &&
-  hashAnchorPassed(
-    report.hashNavigation.desktopDirect,
-    '#lab-awards',
-  ) &&
-  hashAnchorPassed(
-    report.hashNavigation.desktopReload,
-    '#lab-awards',
-  ) &&
-  hashAnchorPassed(
-    report.hashNavigation.hashChange,
-    '#lab-services',
-  ) &&
-  hashAnchorPassed(
-    report.hashNavigation.historyBack,
-    '#lab-awards',
-  ) &&
-  hashAnchorPassed(
-    report.hashNavigation.historyForward,
-    '#lab-services',
-  ) &&
-  hashAnchorPassed(
-    report.hashNavigation.mobileDirect,
-    '#lab-organization',
-  ) &&
-  hashAnchorPassed(
-    report.hashNavigation.animatedDirect,
-    '#lab-intro',
-  ) &&
-  report.consoleErrors.length === 0 &&
-  report.pageErrors.length === 0 &&
-  report.httpErrors.length === 0 &&
-  report.failedRequests.length === 0;
-
-await writeFile(
-  join(outputDirectory, 'browser-qa.json'),
-  `${JSON.stringify(report, null, 2)}\n`,
-);
-
-console.log(JSON.stringify(report, null, 2));
-if (!report.passed) process.exitCode = 1;

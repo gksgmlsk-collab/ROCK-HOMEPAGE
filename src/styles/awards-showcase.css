@@ -1,0 +1,157 @@
+.awards-showcase {
+  --award-gold: #ebcd83;
+  --award-gold-deep: #bd9148;
+  position: relative;
+  isolation: isolate;
+  padding: clamp(26px, 3.8vw, 48px);
+  overflow: hidden;
+  border: 1px solid #27394b;
+  border-radius: 26px;
+  color: #fff9eb;
+  background:
+    radial-gradient(ellipse at 14% 0%, #aa813627, transparent 38%),
+    radial-gradient(ellipse at 95% 20%, #2855833b, transparent 45%),
+    linear-gradient(135deg, #0c2035, #071321 65%, #0b2036);
+  box-shadow: 0 22px 60px #0920371a;
+}
+
+.awards-showcase::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  opacity: .75;
+  background:
+    radial-gradient(circle at 33% 3%, #ffe7ac 0 1px, transparent 2px),
+    radial-gradient(circle at 65% 8%, #c7a56b 0 1px, transparent 2px),
+    radial-gradient(circle at 83% 4%, #c7a56b 0 1px, transparent 2px),
+    radial-gradient(circle at 93% 13%, #ffe7ac 0 1px, transparent 2px),
+    linear-gradient(124deg, transparent 10%, #ffdf9710 10.2%, transparent 22%);
+}
+
+.awards-showcase::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #efd28d, transparent);
+  pointer-events: none;
+}
+
+.awards-showcase__heading { display: flex; justify-content: space-between; align-items: center; gap: 30px; margin: 0 0 32px; }
+.awards-showcase__eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 17px; color: #dfc487; font-size: 11px; font-weight: 600; letter-spacing: .16em; }
+.awards-showcase__eyebrow > span { font-size: 17px; }
+.awards-showcase__heading h1 { margin: 0; color: #fff9ec; font-size: clamp(34px, 4vw, 54px); font-weight: 650; letter-spacing: -.06em; line-height: 1.14; }
+.awards-showcase__heading h1 em { color: var(--award-gold); font-style: normal; }
+.awards-showcase__description { margin: 17px 0 0; color: #b6c1cb; font-size: 15px; line-height: 1.75; letter-spacing: -.025em; }
+.awards-showcase__mobile-break { display: none; }
+.award-laurel { display: block; color: var(--award-gold); }
+.awards-showcase__seal { display: flex; flex-direction: column; align-items: center; flex: 0 0 auto; padding: 0 15px; }
+.awards-showcase__seal .award-laurel { width: 113px; height: 113px; color: #d6b774; filter: drop-shadow(0 0 22px #c5984a33); }
+.awards-showcase__seal > span { margin-top: 5px; color: #b6a07a; font-size: 8px; font-weight: 600; letter-spacing: .2em; line-height: 1.7; text-align: center; }
+.awards-showcase__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 26px; }
+
+.awards-showcase .award-showcase-card {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #dcc08549;
+  border-radius: 17px;
+  background: linear-gradient(145deg, #182e45, #0c1b2d 68%);
+  box-shadow: 0 15px 35px #0207113b, inset 0 1px #fff6d712;
+}
+
+.award-showcase-card__honor { position: relative; display: flex; align-items: center; gap: 17px; min-height: 118px; padding: 23px 26px; background: linear-gradient(115deg, #bf914412, transparent 85%); }
+.award-showcase-card__honor > .award-laurel { width: 60px; height: 66px; flex: 0 0 auto; }
+.award-showcase-card__issuer { margin: 0; color: var(--award-gold); font-size: clamp(22px, 2.2vw, 30px); font-weight: 680; letter-spacing: -.045em; line-height: 1.3; text-shadow: 0 0 30px #d7b46426; }
+.award-showcase-card__rank { margin: 7px 0 0; color: #ddd0ab; font-size: 12px; font-weight: 550; line-height: 1.65; }
+.award-showcase-card__index { position: absolute; top: 13px; right: 14px; color: #d4b16b63; font-size: 10px; font-variant-numeric: tabular-nums; letter-spacing: .08em; }
+.award-showcase-card__media { position: relative; display: block; overflow: hidden; border-top: 1px solid #ebcd8326; border-bottom: 1px solid #ebcd8326; aspect-ratio: 16 / 9; background: #030e1a; }
+.award-showcase-card__media img { width: 100%; height: 100%; object-fit: cover; object-position: center; transition: transform 300ms ease; }
+.award-showcase-card__media:hover img { transform: scale(1.025); }
+.award-showcase-card__media-label { position: absolute; right: 12px; bottom: 12px; display: flex; align-items: center; gap: 12px; min-height: 31px; padding: 5px 10px; border: 1px solid #ecd49157; border-radius: 5px; color: #f1d894; background: #041222d9; font-size: 10px; font-weight: 600; backdrop-filter: blur(8px); }
+.award-showcase-card__body { display: flex; flex-direction: column; flex: 1; padding: 26px; }
+.award-showcase-card__competition { margin: 0 0 11px; color: #b6c3d0; font-size: 11px; line-height: 1.7; }
+.awards-showcase .award-showcase-card h2 { margin: 0; color: #fff9ee; font-size: clamp(24px, 2.5vw, 32px); font-weight: 620; letter-spacing: -.05em; line-height: 1.28; text-wrap: balance; }
+.award-showcase-card__team { margin: 13px 0 0; color: #d4bb80; font-size: 12px; font-weight: 500; line-height: 1.7; }
+.award-showcase-card__summary { margin: 17px 0 0; color: #b7c4d0; font-size: 13px; line-height: 1.8; letter-spacing: -.01em; }
+.award-showcase-card__recognition { display: flex; align-items: flex-start; gap: 9px; margin: 16px 0 0; padding: 10px 12px; border-left: 2px solid #dbba70; border-radius: 0 4px 4px 0; color: #e7d5a9; background: #dbba700d; font-size: 11px; line-height: 1.75; }
+.award-showcase-card__recognition > span { flex: 0 0 auto; font-size: 13px; }
+.award-showcase-card__stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; margin: auto 0 0; padding-top: 25px; }
+.award-showcase-card__stats > div { padding: 14px 12px; border-top: 1px solid #d5b87a2e; border-bottom: 1px solid #d5b87a2e; }
+.award-showcase-card__stats > div:first-child { padding-left: 0; }
+.award-showcase-card__stats > div:last-child { padding-right: 0; }
+.award-showcase-card__stats > div + div { border-left: 1px solid #d5b87a2e; }
+.award-showcase-card__stats dt { margin: 0; color: #f6e1af; font-size: clamp(21px, 2.2vw, 29px); font-weight: 650; letter-spacing: -.045em; line-height: 1.3; white-space: nowrap; }
+.award-showcase-card__stats dd { margin: 7px 0 0; color: #a9b8c8; font-size: 10px; line-height: 1.65; }
+.award-showcase-card__actions { display: flex; gap: 10px; margin-top: 22px; }
+.awards-showcase .award-showcase-card__actions a { display: inline-flex; align-items: center; justify-content: space-between; gap: 18px; min-height: 45px; padding: 11px 16px; border: 1px solid #b7c3cd40; border-radius: 7px; color: #dae2e9; font-size: 12px; font-weight: 650; text-decoration: none; transition: background 160ms ease, border-color 160ms ease; }
+.awards-showcase .award-showcase-card__actions a:first-child { border-color: #e5c47b; color: #172332; background: linear-gradient(110deg, #ecd59a, #d8b35e); box-shadow: 0 4px 16px #d4ac4d18; }
+.awards-showcase .award-showcase-card__actions a:hover { border-color: #fff1c5; color: #182535; background: #fff1c5; }
+.awards-showcase :focus-visible { outline: 3px solid #f5d891; outline-offset: 5px; }
+.award-showcase-card__media:focus-visible { outline-offset: -5px; }
+
+@media (max-width: 1050px) {
+  .awards-showcase { padding: 28px; }
+  .awards-showcase__grid { gap: 18px; }
+  .award-showcase-card__honor { gap: 12px; min-height: 118px; padding: 21px 19px; }
+  .award-showcase-card__honor > .award-laurel { width: 45px; height: 55px; }
+  .award-showcase-card__issuer { font-size: 24px; }
+  .award-showcase-card__rank { font-size: 11px; }
+  .award-showcase-card__body { padding: 21px 19px; }
+  .award-showcase-card__stats > div { padding: 13px 9px; }
+  .award-showcase-card__stats dt { font-size: 22px; }
+  .award-showcase-card__stats dd { font-size: 9px; }
+  .awards-showcase .award-showcase-card__actions a { gap: 10px; padding: 10px 12px; font-size: 11px; }
+}
+
+@media (max-width: 760px) {
+  .awards-showcase { padding: 24px 18px; border-radius: 19px; }
+  .awards-showcase__heading { gap: 16px; margin-bottom: 24px; }
+  .awards-showcase__eyebrow { gap: 7px; margin-bottom: 13px; font-size: 9px; letter-spacing: .1em; }
+  .awards-showcase__heading h1 { font-size: 36px; }
+  .awards-showcase__description { margin-top: 14px; font-size: 13px; }
+  .awards-showcase__mobile-break { display: inline; }
+  .awards-showcase__seal { align-self: flex-start; padding: 0; }
+  .awards-showcase__seal .award-laurel { width: 76px; height: 76px; }
+  .awards-showcase__seal > span { font-size: 6px; letter-spacing: .13em; }
+  .awards-showcase__grid { grid-template-columns: 1fr; gap: 24px; }
+  .awards-showcase .award-showcase-card { border-radius: 13px; }
+  .award-showcase-card__honor { gap: 15px; min-height: 106px; padding: 20px; }
+  .award-showcase-card__honor > .award-laurel { width: 51px; height: 60px; }
+  .award-showcase-card__issuer { font-size: 26px; }
+  .award-showcase-card__body { padding: 22px 20px; }
+  .awards-showcase .award-showcase-card h2 { font-size: 27px; }
+  .award-showcase-card__competition { font-size: 11px; }
+  .award-showcase-card__summary { font-size: 13px; }
+  .award-showcase-card__stats dt { font-size: 25px; }
+  .award-showcase-card__stats dd { font-size: 10px; }
+  .award-showcase-card__actions { gap: 9px; }
+  .awards-showcase .award-showcase-card__actions a { flex: 1; gap: 6px; padding: 11px 13px; font-size: 12px; }
+}
+
+@media (max-width: 420px) {
+  .awards-showcase { padding: 23px 13px 16px; }
+  .awards-showcase__heading { padding: 0 5px; gap: 8px; }
+  .awards-showcase__heading h1 { font-size: 33px; }
+  .awards-showcase__seal .award-laurel { width: 55px; height: 64px; }
+  .awards-showcase__seal > span { display: none; }
+  .awards-showcase__description { font-size: 12px; }
+  .award-showcase-card__honor { gap: 12px; padding: 18px 15px; }
+  .award-showcase-card__honor > .award-laurel { width: 43px; height: 55px; }
+  .award-showcase-card__issuer { font-size: 24px; }
+  .award-showcase-card__rank { font-size: 10px; }
+  .award-showcase-card__body { padding: 21px 17px; }
+  .awards-showcase .award-showcase-card h2 { font-size: 25px; }
+  .award-showcase-card__stats dt { font-size: 22px; }
+  .award-showcase-card__stats dd { font-size: 9px; }
+  .awards-showcase .award-showcase-card__actions a { font-size: 11px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .awards-showcase * { transition: none; }
+}

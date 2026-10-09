@@ -1,7 +1,9 @@
 import { ending } from '../data/scenes';
+import { viewHashes } from '../data/siteNavigation';
 
 type EndSequenceProps = {
   timelineTime: number;
+  onEnter: () => void;
 };
 
 export function EndBrand() {
@@ -33,7 +35,19 @@ export function EndBrand() {
   );
 }
 
-export function EndSequence({ timelineTime }: EndSequenceProps) {
+export function EnterHomepage({ onEnter }: { onEnter: () => void }) {
+  return (
+    <div className="intro-entry">
+      <p>학생지원 · 학교안전 · 학교행정<br />학교를 위한 도구들을 만나보세요.</p>
+      <a className="intro-entry__button" href={viewHashes.about} onClick={event => {
+        if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+        event.preventDefault(); onEnter();
+      }}>홈페이지 들어가기 <span aria-hidden="true">↗</span></a>
+    </div>
+  );
+}
+
+export function EndSequence({ timelineTime, onEnter }: EndSequenceProps) {
   if (timelineTime < ending.startTime) return null;
 
   const stage =
@@ -51,7 +65,10 @@ export function EndSequence({ timelineTime }: EndSequenceProps) {
           {ending.messages[stage]}
         </p>
       ) : (
-        <EndBrand key="ending-logo" />
+        <div className="intro-ending" key="ending-logo">
+          <EndBrand />
+          <EnterHomepage onEnter={onEnter} />
+        </div>
       )}
     </section>
   );

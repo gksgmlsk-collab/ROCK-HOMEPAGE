@@ -1,43 +1,71 @@
-# DOL AI LAB Scroll World
+# DOL AI LAB 홈페이지
 
-돌 AI연구소의 다섯 장면을 하나의 연속 카메라 여정으로 연결한 공식 소개
-사이트입니다. Vite, React, TypeScript로 구현했으며 페이지 스크롤 위치를 master
-영상의 `currentTime`에 동기화합니다. 아래로 스크롤하면 정방향, 위로 스크롤하면
-역방향으로 같은 여정을 탐색합니다.
+돌 AI연구소의 소개와 학교 앱을 탐색하는 공식 홈페이지입니다. Vite, React,
+TypeScript로 구현했으며, 첫 방문에는 스크롤로 움직이는 소개 여정을 제공합니다.
+마지막의 **홈페이지 들어가기**를 누르면 **연구소 소개 / 전체 앱** 두 메뉴에서
+필요한 화면을 선택합니다. 홈페이지 안에서는 선택한 화면만 표시합니다.
 
-기준 타임라인은 총 44초입니다.
+소개 영상은 첫 스크롤 여정에서 사용합니다. 홈페이지 진입 후에는 첫 장면 이미지를
+화면 전체 배경으로 사용하고, 아이보리 그라데이션 위에 큰 초록색 제목으로 소개합니다.
+헤더는 다른 페이지와 같은 아이보리·초록 디자인이며, 둥근 버튼과 하단의 네 카드에서
+앱과 수상 화면으로 이동합니다. 카드 숫자는 실제 앱·기능 및 수상 목록에서 계산합니다.
+영상 제작용 기준 타임라인은 총 44초이며, 아래 미디어 파이프라인 설명은 보존합니다.
 
 - 장면 5개 × 5초
 - 장면 사이 연결 영상 4개 × 4초
 - 엔딩 3초
 
-실제 인코딩 과정에서 중복 경계 프레임이 제거되어 재생 길이가 조금 달라져도,
-브라우저가 읽은 실제 영상 길이에 맞춰 스크롤 타임라인을 자동으로 비례 조정합니다.
+스크롤 엔진은 첫 소개에서만 마운트하고 홈페이지에 들어오면 정리합니다.
+영상 위의 큰 흰색 ‘홈페이지 바로가기’와 홈페이지 하단의 큰 초록색 ‘처음 소개영상 다시보기’ 버튼도 제공합니다.
 
 ## 기술 구성
 
 - React 18
 - Vite 6
 - TypeScript
-- CSS 기반 full-viewport sticky 레이아웃
+- 해시 주소 기반 화면 전환과 반응형 펼침 메뉴
 - FFmpeg 기반 로컬 미디어 정규화·연결·QA
 - Playwright Core와 Microsoft Edge 기반 브라우저 QA
 
 ## 홈페이지 구성
 
-첫 진입 화면에서는 교사·학생·돌봇이 움직이는 별도 무음 반복 영상이 자동 재생되고,
-스크롤을 시작하면 44초 Scroll World master로 자연스럽게 이어집니다. 이후 고정
-헤더의 네 메뉴로 공식 소개 콘텐츠를 탐색합니다.
+첫 화면은 다섯 장면의 스크롤 여정이며, 끝에서 홈페이지로 연결됩니다. 홈페이지의 상단 두 메뉴는 클릭하면
+하위 메뉴가 펼쳐지며, Escape·바깥 클릭·키보드 초점 이동으로 닫힙니다.
 
-1. 연구소 소개 — 핵심 철학, 7단계 운영모델, 운영조직, 6개 향후 운영계획
-2. 대표 서비스 — 드라코니스, 돌쇠, 석암 ON, 돌FLIX
-3. 연구소 수상 — 교육 공공데이터 AI 활용대회 대상과 법령데이터 공모전 최우수상
-4. 서비스 포트폴리오 — 카테고리 필터가 있는 13개 프로젝트
+| 메뉴 | 화면 주소 | 내용 |
+| --- | --- | --- |
+| 첫 소개 | `/` 또는 `#/intro` | 스크롤 여정과 홈페이지 들어가기 |
+| 연구소 소개 | `#/about` | 넓은 이미지 배경·아이보리/초록 소개·둥근 바로가기 카드 |
+| 연구소 소개 → 연구소 수상 | `#/about/awards` | 금색·남색 전시형 수상 카드 두 개 |
+| 연구소 소개 → 운영조직 | `#/about/organization` | 구성원과 네 부서 |
+| 전체 앱 | `#/apps` | 세 영역 진입 카드와 통합 검색 |
+| 전체 앱 → 학생지원 | `#/apps/student` | 드라코니스 대표, 10개 앱·기능 |
+| 전체 앱 → 학교안전 | `#/apps/safety` | 반경너머 대표, 5개 앱 |
+| 전체 앱 → 학교행정 | `#/apps/admin` | 돌쇠·석암 뷔페 대표, 8개 앱 |
+
+영역별 앱은 6개씩 표시하고 활용 목적과 이용 대상에 따라 필터링합니다. 전체 설명은
+상세 대화상자에서 확인하며, 드라코니스 소개 자료·학습 화면과 행정 통합 제안은
+요청할 때 펼칩니다. 앱 담당자는 드라코니스의 조미진만 표시합니다. 운영조직과 수상 기록의
+이름은 별도 정보로 유지합니다. 기존 `#lab-*` 링크도 해당 화면으로 연결됩니다.
+
+대표 앱은 각 영역 상단에 큰 이미지로 소개합니다. 드라코니스는 세계관 이미지를
+대표로 사용하고, 소개 자료와 학습 화면은 큰 글씨·이미지 확대·원본 보기로 확인합니다.
+
+2026-10-10에 [석암 프로젝트 통합센터](https://seokam-review-hub-production.up.railway.app/)
+공개 목록과 전체 구성 의견을 확인해 분류와 연결 주소를 반영했습니다. 아침 걷기와
+석암 HERO는 독립 앱으로 중복 소개하지 않고 드라코니스의 연계 기능으로 표시합니다.
+기존 보도자료앱·연구소 노션·체육환경부 링크는 접을 수 있는 이전 프로젝트 목록에 보존합니다.
+
+석암 뷔페 중심의 외부 업무 도구 연계와 석암 ON 핵심 기능 정리는 **검토 중인 방향**입니다.
+홈페이지에서 업무 앱으로 직접 연결하며, 다른 앱의 코드나 로그인 체계는 변경하지 않습니다.
+리뷰 허브의 참여 코드와 내부 인증 정보는 배포 콘텐츠에 포함하지 않습니다.
 
 공식 소개 데이터는 [`src/data/labContent.ts`](src/data/labContent.ts)에 타입이
 지정된 형태로 관리합니다. 레거시 `LAB/lab-data.js`를 브라우저에 import하거나
 배포하지 않으며, 레거시 파일에 있던 접근용 비밀번호도 새 데이터에 포함하지
-않습니다. 화면에는 검토된 로컬 이미지 7개만 `public/assets/lab/`에서 사용합니다.
+않습니다. 화면에는 검토된 로컬 이미지를 `public/assets/lab/`에서 사용합니다.
+`beyond-radius-overview.png`와 `seokam-buffet-overview.png`는 리뷰 허브의 공개 상세 화면에서
+가져왔으며, 석암 뷔페 이미지는 더미 데이터를 사용하는 미리보기 화면입니다.
 
 ## 실행
 
@@ -132,7 +160,9 @@ public/generated/scenes/
 public/generated/transitions/
 ```
 
-## 스크롤 엔진
+## 첫 소개의 스크롤 엔진
+
+루트 주소와 `#/intro`에서 사용하며, 홈페이지 내부 화면에서는 마운트하지 않습니다.
 
 [`src/hooks/useScrollVideo.ts`](src/hooks/useScrollVideo.ts)는 다음을 담당합니다.
 
@@ -154,7 +184,7 @@ master 영상, 원본 안정 구간, 장면 카피, 진행 표시와 엔딩을 �
 스크롤을 시작하면 숨기고 일시정지합니다.
 엔딩 문구는 영상에 굽지 않고 HTML로
 `학교를 더 똑똑하게` → `교사의 시간을 학생에게` → DOL AI LAB 로고 순서로
-표시합니다.
+표시합니다. 마지막 로고 아래의 홈페이지 들어가기 버튼은 `#/about`으로 이동합니다.
 
 ## 모바일과 모션 감소
 
@@ -187,16 +217,15 @@ npm run qa:browser
 QA는 기본적으로 설치된 Microsoft Edge를 headless Chromium으로 사용하고 다음을
 검사합니다.
 
-- 데스크톱 master 로드와 5개 장면 이동 버튼
-- 첫 화면 반복 영상의 자동재생·반복·실제 시간 진행과 스크롤 뒤 일시정지
-- 장면 1의 고대비 카피 박스와 master 영상 유지, 장면 5의 중복 카피 제거
-- 마지막 흰색·금색 HTML 로고 표시
-- 아래·위 스크롤에 따른 정방향·역방향 시간 이동
-- 모바일 영상과 포스터의 `contain` 적용
-- 모션 감소 모드에서 영상이 없고 정적 장면 5개가 제공되는지 여부
-- 정확한 네 메뉴와 단일 `<main>`, 각 메뉴 앵커 이동
-- 운영모델 7단계, 조직 4개 부서, 향후계획 6개, 대표 서비스 4개, 수상 2개
-- 포트폴리오 13개와 카테고리 필터
+- 두 상단 메뉴, 펼침 메뉴의 키보드·Escape·바깥 클릭 동작
+- 첫 스크롤 소개·마지막 진입 버튼·홈페이지 바로가기·다시 보기와 모션 감소 경로
+- 독립 화면 전환, 직접 주소, 새로고침, 뒤로·앞으로 가기
+- 학생지원 10·학교안전 5·학교행정 8개 앱·기능의 필터·검색·6개씩 페이지 전환
+- 앱 상세 창의 초점 유지·닫기·원래 버튼으로 복귀와 담당자 표시
+- 영상이 없는 이미지 소개 화면·네 바로가기 카드·수상 전시·운영조직
+- 접을 수 있는 드라코니스 소개 자료, 갤러리와 행정 업무 연결 제안
+- 대표 이미지 크기와 드라코니스 자료 확대·원본 보기
+- 1440px·900px·390px 반응형 및 가로 넘침
 - 레거시 접근용 계정 문자열이 화면에 노출되지 않는지 여부
 - 콘솔 오류, 페이지 오류, 실패한 네트워크 요청
 
@@ -206,25 +235,13 @@ QA는 기본적으로 설치된 Microsoft Edge를 headless Chromium으로 사용
 artifacts/
   browser-qa.json
   desktop-start.png
-  desktop-original-band.png
-  desktop-reverse.png
-  desktop-transition-five-early.png
-  desktop-transition-five-late.png
-  desktop-scene-five-overview.png
-  desktop-scene-five-push-in.png
-  desktop-scene-five-community.png
-  desktop-scene-five-finale.png
-  desktop-ending.png
-  desktop-content-intro.png
-  desktop-content-operating-model.png
-  desktop-content-organization.png
-  desktop-content-roadmap.png
-  desktop-content-featured.png
-  desktop-content-awards.png
-  desktop-content-portfolio.png
-  mobile-scene.png
-  mobile-content-intro.png
-  reduced-motion.png
+  desktop-app-menu.png
+  desktop-app-overview.png
+  desktop-student.png
+  desktop-admin.png
+  mobile-start.png
+  mobile-app-menu.png
+  mobile-student.png
 ```
 
 다른 주소나 브라우저 실행 파일을 사용하려면 `QA_BASE_URL`,
@@ -294,10 +311,20 @@ Render 배포본은 1080p·30fps와 GOP 8을 유지하면서 데스크톱 master
 - `src/components/EndSequence.tsx`: 고대비 HTML/SVG 엔딩 브랜드
 - `src/components/ReducedMotionExperience.tsx`: 모션 감소 정적 여정
 - `src/styles/global.css`: 브랜드 색상, 반응형 레이아웃, safe area와 접근성
-- `src/data/labContent.ts`: 소개, 조직, 서비스, 수상, 13개 프로젝트의 검토된 데이터
-- `src/components/LabHomepage.tsx`: Scroll World 뒤의 다섯 공식 콘텐츠 섹션
-- `src/components/SiteHeader.tsx`: 다섯 앵커와 활성 상태를 제공하는 고정 헤더
-- `src/styles/content.css`: 공식 소개 섹션의 데스크톱·390px 편집 디자인
+- `src/data/labContent.ts`: 소개, 조직, 서비스, 수상, 세 영역과 23개 앱·기능의 검토된 데이터
+- `src/App.tsx`: 선택한 화면만 마운트하고 화면 이동·브라우저 기록 처리
+- `src/data/siteNavigation.ts`: 화면 주소와 기존 링크 호환
+- `src/components/SiteHeader.tsx`: 두 메뉴와 세 항목씩 펼쳐지는 하위 메뉴
+- `src/components/AboutWorkspace.tsx`: 이미지 배경 소개·수상·운영조직
+- `src/components/AwardsShowcase.tsx`, `src/styles/awards-showcase.css`: 수상작 이미지·월계관·성과 수치를 강조한 전시 화면
+- `src/components/AppWorkspace.tsx`: 세 영역·검색·페이지 전환·앱 상세 대화상자
+- `src/styles/workspace-shell.css`: 공통 프레임·헤더·펼침 메뉴
+- `src/styles/home-landing.css`: 홈페이지의 아이보리·초록 배경과 둥근 버튼·카드
+- `src/styles/intro-experience.css`: 첫 소개의 헤더·진입 버튼과 반응형 엔딩
+- `src/styles/draconis-showcase.css`: 드라코니스 자료 가독성과 확대 화면
+- `src/styles/about-workspace.css`, `src/styles/app-workspace.css`: 각 화면의 반응형 디자인
+- `src/utils/dialogFocus.ts`: 대화상자의 키보드 초점 순환
+- `src/styles/content.css`: 보존된 공통 및 드라코니스 소개 자료 스타일
 - `scripts/media/`: 로컬 FFmpeg 미디어 파이프라인
 - `scripts/media/New-ZeroCostMotionEdits.ps1`: 무과금 첫 화면·장면 5 재편집
 - `scripts/qa-browser.mjs`: 데스크톱·모바일·모션 감소 브라우저 QA

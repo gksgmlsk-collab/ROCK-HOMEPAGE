@@ -9,8 +9,8 @@ export function LabHomepage() {
     <>
       <LabIntroSection />
       <FeaturedServices />
-      <AwardsSection />
       <PortfolioSection />
+      <AwardsSection />
       <OrganizationSection />
     </>
   );

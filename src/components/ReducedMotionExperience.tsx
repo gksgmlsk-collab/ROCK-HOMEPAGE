@@ -1,13 +1,15 @@
 import { ending, scenes } from '../data/scenes';
-import { EndBrand } from './EndSequence';
+import { EndBrand, EnterHomepage } from './EndSequence';
 import { MotionPreferenceControl } from './MotionPreferenceControl';
 
 type ReducedMotionExperienceProps = {
+  onEnter: () => void;
   onEnableAnimation?: () => void;
 };
 
 export function ReducedMotionExperience({
   onEnableAnimation,
+  onEnter,
 }: ReducedMotionExperienceProps) {
   return (
     <div className="reduced-world" id="journey-start">
@@ -55,7 +57,10 @@ export function ReducedMotionExperience({
         <p>{ending.messages[1]}</p>
       </section>
       <section className="reduced-ending reduced-ending--logo">
-        <EndBrand />
+        <div className="intro-ending">
+          <EndBrand />
+          <EnterHomepage onEnter={onEnter} />
+        </div>
       </section>
     </div>
   );

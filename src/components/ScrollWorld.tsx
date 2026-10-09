@@ -118,25 +118,27 @@ function getOriginalFrameOpacity(
   return Math.min(fadeIn, fadeOut);
 }
 
-export function ScrollWorld() {
+export function ScrollWorld({ onEnter }: { onEnter: () => void }) {
   const reducedMotion = usePrefersReducedMotion();
   const { animatedOverride, enableAnimation, followSystemPreference } =
     useMotionOverride();
 
   return reducedMotion && !animatedOverride ? (
-    <ReducedMotionExperience onEnableAnimation={enableAnimation} />
+    <ReducedMotionExperience onEnableAnimation={enableAnimation} onEnter={onEnter} />
   ) : (
     <AnimatedScrollWorld
+      onEnter={onEnter}
       onReturnToStatic={reducedMotion ? followSystemPreference : undefined}
     />
   );
 }
 
 type AnimatedScrollWorldProps = {
+  onEnter: () => void;
   onReturnToStatic?: () => void;
 };
 
-function AnimatedScrollWorld({ onReturnToStatic }: AnimatedScrollWorldProps) {
+function AnimatedScrollWorld({ onReturnToStatic, onEnter }: AnimatedScrollWorldProps) {
   const containerRef = useRef<HTMLElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const enabledScenes = useMemo(
@@ -241,7 +243,7 @@ function AnimatedScrollWorld({ onReturnToStatic }: AnimatedScrollWorldProps) {
           <div className="world-grain" aria-hidden="true" />
 
           <SceneOverlay scene={activeScene} timelineTime={timelineTime} />
-          <EndSequence timelineTime={timelineTime} />
+          <EndSequence timelineTime={timelineTime} onEnter={onEnter} />
 
           <LoadingScreen
             isLoading={isLoading}
