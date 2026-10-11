@@ -47,6 +47,8 @@ const PORTRAIT_SOURCE_QUERY =
   '(orientation: portrait) and (max-width: 1024px)';
 const CONSTRAINED_CONNECTION_TYPES = new Set(['slow-2g', '2g', '3g']);
 const PAINT_CONFIRM_TIMEOUT_MS = 2400;
+const FIRST_FRAME_TIMEOUT_MS = 45000;
+const SEEK_RETARGET_INTERVAL_MS = 200;
 
 function getNetworkConnection() {
   if (typeof navigator === 'undefined') return null;
@@ -88,41 +90,10 @@ function subscribeToMediaQuery(
   return () => media.removeListener(listener);
 }
 
-function fetchBlob(
-  url: string,
-  signal: AbortSignal,
-  onProgress: (progress: number | null) => void,
-): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const request = new XMLHttpRequest();
-    request.open('GET', url, true);
-    request.responseType = 'blob';
-
-    request.onprogress = (event) => {
-      onProgress(event.lengthComputable ? event.loaded / event.total : null);
-    };
-    request.onerror = () => reject(new Error(`영상을 불러오지 못했습니다: ${url}`));
-    request.onabort = () =>
-      reject(new DOMException('영상 로딩이 취소되었습니다.', 'AbortError'));
-    request.onload = () => {
-      if (request.status >= 200 && request.status < 300 && request.response) {
-        onProgress(1);
-        resolve(request.response);
-        return;
-      }
-
-      reject(new Error(`영상 파일을 찾을 수 없습니다 (${request.status}): ${url}`));
-    };
-
-    const abort = () => request.abort();
-    signal.addEventListener('abort', abort, { once: true });
-    request.send();
-  });
-}
-
 function waitForMetadata(video: HTMLVideoElement, signal: AbortSignal) {
   return new Promise<void>((resolve, reject) => {
     const clear = () => {
+      window.clearTimeout(timeout);
       video.removeEventListener('loadedmetadata', handleLoaded);
       video.removeEventListener('error', handleError);
       signal.removeEventListener('abort', handleAbort);
@@ -139,6 +110,10 @@ function waitForMetadata(video: HTMLVideoElement, signal: AbortSignal) {
       clear();
       reject(new DOMException('영상 로딩이 취소되었습니다.', 'AbortError'));
     };
+    const timeout = window.setTimeout(() => {
+      clear();
+      reject(new Error('영상 연결이 지연되고 있습니다. 다시 시도해 주세요.'));
+    }, FIRST_FRAME_TIMEOUT_MS);
 
     video.addEventListener('loadedmetadata', handleLoaded);
     video.addEventListener('error', handleError);
@@ -176,7 +151,7 @@ export function useScrollVideo({
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [loadState, setLoadState] = useState<LoadState>({
     isLoading: true,
-    loadProgress: 0,
+    loadProgress: null,
     ready: false,
     painted: false,
     error: null,
@@ -188,8 +163,8 @@ export function useScrollVideo({
   const smoothTimeRef = useRef(0);
   const mediaDurationRef = useRef(timelineDuration);
   const pendingSeekRef = useRef<number | null>(null);
-  const lastAppliedTimeRef = useRef(-1);
-  const objectUrlRef = useRef<string | null>(null);
+  const lastSeekAtRef = useRef(0);
+  const presentedTimeRef = useRef(0);
   const stableViewportRef = useRef({
     width: typeof window === 'undefined' ? 0 : window.innerWidth,
     height: typeof window === 'undefined' ? 1 : window.innerHeight,
@@ -251,6 +226,7 @@ export function useScrollVideo({
     let secondAnimationFrame = 0;
     let paintTimeout = 0;
     let frameAvailabilityQueued = false;
+    const startedAt = performance.now();
 
     const sourceIsCurrent = () =>
       videoRef.current === video &&
@@ -286,14 +262,21 @@ export function useScrollVideo({
       clearResources();
       paintCleanupRef.current = null;
       paintedScheduledRef.current = false;
-      setLoadState((state) => ({ ...state, painted: true }));
+      setLoadState((state) => ({ ...state, isLoading: false, loadProgress: 1, painted: true }));
     };
     const handlePaintTimeout = () => {
-      if (trackedVideo.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+      if (trackedVideo.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && !trackedVideo.seeking) {
         commitPainted();
         return;
       }
       if (cancelled || !sourceIsCurrent()) return;
+
+      // A direct network source may still be fetching the requested range.
+      // The old 2.4-second decode deadline applied only to fully loaded Blobs.
+      if (performance.now() - startedAt < FIRST_FRAME_TIMEOUT_MS) {
+        paintTimeout = window.setTimeout(handlePaintTimeout, PAINT_CONFIRM_TIMEOUT_MS);
+        return;
+      }
 
       clearResources();
       paintCleanupRef.current = null;
@@ -357,29 +340,26 @@ export function useScrollVideo({
       if (!video || video.readyState < HTMLMediaElement.HAVE_METADATA) return;
       if (!Number.isFinite(video.duration) || video.duration <= 0) return;
 
-      const seekableEnd =
-        video.seekable.length > 0
-          ? video.seekable.end(video.seekable.length - 1)
-          : video.duration;
+      // Let the browser request an unbuffered range anywhere in this finite
+      // movie; an early seekable range must not clamp a distant chapter jump.
       const nextTime = clamp(
         requestedTime,
         0,
-        Math.max(0, Math.min(video.duration, seekableEnd) - 0.025),
+        Math.max(0, video.duration - 0.025),
       );
 
       if (video.seeking) {
         pendingSeekRef.current = nextTime;
-        return;
+        // Coalesce small scrubs, but allow a new distant target to supersede
+        // a slow network seek instead of waiting for an obsolete range.
+        if (Math.abs(video.currentTime - nextTime) < 0.5 ||
+          performance.now() - lastSeekAtRef.current < SEEK_RETARGET_INTERVAL_MS) return;
       }
 
-      if (
-        Math.abs(video.currentTime - nextTime) < 0.018 ||
-        Math.abs(lastAppliedTimeRef.current - nextTime) < 0.018
-      ) {
-        return;
-      }
+      if (Math.abs(video.currentTime - nextTime) < 0.018) return;
 
-      lastAppliedTimeRef.current = nextTime;
+      pendingSeekRef.current = null;
+      lastSeekAtRef.current = performance.now();
       video.currentTime = nextTime;
     },
     [videoRef],
@@ -394,6 +374,9 @@ export function useScrollVideo({
     if (!video) return;
 
     const handleSeeked = () => {
+      if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+        presentedTimeRef.current = video.currentTime;
+      }
       markPainted();
       const pending = pendingSeekRef.current;
       pendingSeekRef.current = null;
@@ -410,6 +393,7 @@ export function useScrollVideo({
 
     const controller = new AbortController();
     let disposed = false;
+    let metadataReady = false;
     const preferredSources =
       shouldUseMobileSource && mobileSources.length > 0
         ? mobileSources
@@ -423,46 +407,28 @@ export function useScrollVideo({
       cancelPaintTracking();
       setLoadState({
         isLoading: true,
-        loadProgress: 0,
+        loadProgress: null,
         ready: false,
         painted: false,
         error: null,
         activeSource: null,
       });
       pendingSeekRef.current = null;
-      lastAppliedTimeRef.current = -1;
-
-      if (objectUrlRef.current) {
-        URL.revokeObjectURL(objectUrlRef.current);
-        objectUrlRef.current = null;
-      }
+      lastSeekAtRef.current = 0;
+      presentedTimeRef.current = 0;
 
       let finalError: Error | null = null;
 
       for (const source of candidates) {
-        let candidateUrl: string | null = null;
         try {
-          const blob = await fetchBlob(
-            source,
-            controller.signal,
-            (nextProgress) => {
-              if (!disposed) {
-                setLoadState((state) => ({
-                  ...state,
-                  loadProgress: nextProgress,
-                }));
-              }
-            },
-          );
-          if (disposed) return;
-
-          candidateUrl = URL.createObjectURL(blob);
-          video.src = candidateUrl;
+          // Native range loading can decode the opening immediately and fetch
+          // later chapters on demand without downloading the entire master.
+          video.preload = 'auto';
+          video.src = source;
           await waitForMetadata(video, controller.signal);
           if (disposed) return;
 
-          objectUrlRef.current = candidateUrl;
-          candidateUrl = null;
+          metadataReady = true;
           mediaDurationRef.current = video.duration;
           const initialTime = progressRef.current * video.duration;
           targetTimeRef.current = initialTime;
@@ -471,8 +437,8 @@ export function useScrollVideo({
           video.currentTime = Math.min(initialTime, Math.max(0, video.duration - 0.025));
 
           setLoadState({
-            isLoading: false,
-            loadProgress: 1,
+            isLoading: true,
+            loadProgress: null,
             ready: true,
             painted: false,
             error: null,
@@ -481,7 +447,6 @@ export function useScrollVideo({
           markPainted();
           return;
         } catch (error) {
-          if (candidateUrl) URL.revokeObjectURL(candidateUrl);
           if (error instanceof DOMException && error.name === 'AbortError') return;
           finalError =
             error instanceof Error ? error : new Error('영상 로딩에 실패했습니다.');
@@ -502,19 +467,28 @@ export function useScrollVideo({
       }
     };
 
+    // Range requests can fail after metadata has already loaded. Preserve the
+    // original-poster fallback and retry control for those failures as well.
+    const handlePlaybackError = () => {
+      if (disposed || !metadataReady) return;
+      cancelPaintTracking();
+      video.pause();
+      setLoadState((state) => ({
+        ...state, isLoading: false, ready: false, painted: false,
+        error: '영상을 불러오지 못했습니다. 다시 시도해 주세요.',
+      }));
+    };
+    video.addEventListener('error', handlePlaybackError);
     void load();
 
     return () => {
       disposed = true;
       controller.abort();
+      video.removeEventListener('error', handlePlaybackError);
       cancelPaintTracking();
       video.pause();
       video.removeAttribute('src');
       video.load();
-      if (objectUrlRef.current) {
-        URL.revokeObjectURL(objectUrlRef.current);
-        objectUrlRef.current = null;
-      }
     };
   }, [
     cancelPaintTracking,
@@ -657,8 +631,15 @@ export function useScrollVideo({
         next = end * (1 - Math.cos(idleSeconds * Math.PI / 2.4)) / 2;
       } else if (Math.abs(seekTarget - next) < 0.012) next = seekTarget;
       smoothTimeRef.current = next;
+      if (loadState.ready && video && !video.seeking &&
+        video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+        presentedTimeRef.current = video.currentTime;
+      }
+      // Captions/badges follow the decoded frame while an unbuffered seek is
+      // pending. The previous picture stays visible instead of jumping ahead.
+      const shownTime = loadState.ready ? presentedTimeRef.current : next;
       const nextDisplayedProgress = idleActive ? 0 : clamp(
-        next / Math.max(0.001, mediaDurationRef.current),
+        shownTime / Math.max(0.001, mediaDurationRef.current),
       );
       setDisplayedProgress((previous) =>
         idleActive ? 0 : Math.abs(previous - nextDisplayedProgress) > 0.00025
@@ -681,14 +662,18 @@ export function useScrollVideo({
     const video = videoRef.current;
     if (!video) return;
     let primed = false;
+    let priming = false;
+    let disposed = false;
 
     const prime = async () => {
-      if (primed || !loadState.ready) return;
+      if (disposed || primed || priming || !loadState.ready) return;
+      priming = true;
       const requestedTime = targetTimeRef.current;
 
       try {
         video.muted = true;
         await video.play();
+        if (disposed) return;
         video.pause();
         primed = true;
         const desiredTime = openingIdleEnd > 0 ? smoothTimeRef.current : requestedTime;
@@ -699,16 +684,19 @@ export function useScrollVideo({
         window.removeEventListener('touchstart', prime);
       } catch {
         // Keep the listeners: a later genuine user gesture can prime iOS Safari.
+      } finally {
+        priming = false;
       }
     };
 
     window.addEventListener('pointerdown', prime, { passive: true });
     window.addEventListener('touchstart', prime, { passive: true });
     // Modern browsers allow muted inline playback without a gesture. Prime as
-    // soon as the fully seekable blob is ready, while keeping the gesture
+    // soon as native video metadata is ready, while keeping the gesture
     // listeners as the iOS/WebView fallback when this attempt is rejected.
     void prime();
     return () => {
+      disposed = true;
       window.removeEventListener('pointerdown', prime);
       window.removeEventListener('touchstart', prime);
     };

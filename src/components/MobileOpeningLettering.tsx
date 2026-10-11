@@ -74,7 +74,12 @@ export function MobileOpeningLettering({ sourceImage, timelineTime, visible, vid
     const video = videoRef.current;
     if (!nearOpening || !video) return;
     let frame = 0;
-    const sample = () => setMediaTime((previous) => Math.abs(previous - video.currentTime) < .001 ? previous : video.currentTime);
+    const sample = () => {
+      // currentTime points to the requested frame during a network seek.
+      // Keep the lettering on the last decoded picture until that seek lands.
+      if (video.seeking || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return;
+      setMediaTime((previous) => Math.abs(previous - video.currentTime) < .001 ? previous : video.currentTime);
+    };
     const tick = () => {
       if (!document.hidden) sample();
       frame = requestAnimationFrame(tick);

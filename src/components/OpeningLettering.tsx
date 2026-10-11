@@ -26,6 +26,7 @@ export function OpeningLettering({ sourceImage, timelineTime, visible, videoRef 
     const sample = () => {
       // Read the displayed media time: idle deliberately keeps UI time at zero.
       // Seeking remains exclusively owned by useScrollVideo.
+      if (video.seeking || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return;
       const fraction = Math.max(0, Math.min(1, (video.currentTime - 0.25) / 0.25));
       setGuardOpacity(1 - fraction * fraction * (3 - 2 * fraction));
     };
