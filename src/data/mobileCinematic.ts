@@ -5,7 +5,7 @@ export const MOBILE_CINEMATIC_DURATION = 51;
 export const MOBILE_CINEMATIC_ENDING_START = 49;
 export const MOBILE_CINEMATIC_MASTER = ['/generated/intro-mobile-v3/mobile-master.mp4'] as const;
 export const MOBILE_CINEMATIC_LOGO = '/generated/intro-mobile-v3/posters/scene07.png';
-export const MOBILE_CINEMATIC_OPENING_POSTER = '/generated/intro-mobile-v3/opening-poster.png';
+export const MOBILE_CINEMATIC_OPENING_POSTER = '/generated/intro-mobile-v3/front-welcome.webp';
 
 // The reviewed clean opening gently blinks before the gate starts to open.
 export const MOBILE_CINEMATIC_OPENING_IDLE_END = 0.2;
@@ -29,7 +29,8 @@ function mobileScene(
   id: string, order: number, title: string, subtitle: string,
   startTime: number, endTime: number, tone: Scene['tone'], alt: string,
 ): Scene {
-  const image = `/generated/intro-mobile-v3/posters/scene${String(order).padStart(2, '0')}.png`;
+  const image = order === 1 ? MOBILE_CINEMATIC_OPENING_POSTER
+    : `/generated/intro-mobile-v3/posters/scene${String(order).padStart(2, '0')}.png`;
   return {
     id, order, title, subtitle, startTime, endTime, tone, alt,
     sourceImage: image,

@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import {
   MOBILE_CINEMATIC_DURATION,
   MOBILE_CINEMATIC_ENDING_START,
@@ -28,6 +28,8 @@ type MobileCinematicWorldProps = {
 export function MobileCinematicWorld({ onEnter, onReturnToStatic }: MobileCinematicWorldProps) {
   const containerRef = useRef<HTMLElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  // null = still loading; false = failed, so the existing video remains the fallback.
+  const [welcomeReady, setWelcomeReady] = useState<boolean | null>(null);
   const {
     progress, timelineTime, ready, painted, isLoading, loadProgress, error,
     retryLoad, scrollToTimelineTime,
@@ -43,7 +45,8 @@ export function MobileCinematicWorld({ onEnter, onReturnToStatic }: MobileCinema
   const scene = mobileCinematicSceneAtTime(timelineTime);
   const sceneIndex = mobileCinematicScenes.indexOf(scene);
   const nearbyPosters = mobileCinematicScenes.filter((_, index) => Math.abs(index - sceneIndex) <= 1);
-  const videoVisible = ready && painted;
+  const welcomePending = timelineTime < .25 && welcomeReady === null;
+  const videoVisible = ready && painted && !welcomePending;
   const atEnding = timelineTime >= MOBILE_CINEMATIC_ENDING_START;
 
   return (
@@ -62,10 +65,11 @@ export function MobileCinematicWorld({ onEnter, onReturnToStatic }: MobileCinema
               data-source-variant="mobile" data-intro-version="mobile-v3"
               poster={MOBILE_CINEMATIC_OPENING_POSTER}
               preload="metadata" muted playsInline disablePictureInPicture aria-hidden="true" />
-            <MobileOpeningLettering sourceImage="/generated/intro-v2/posters/mobile/scene01.png"
+            <MobileOpeningLettering sourceImage={welcomeReady === false
+              ? '/generated/intro-v2/posters/mobile/scene01.png' : MOBILE_CINEMATIC_OPENING_POSTER}
               timelineTime={timelineTime} visible={videoVisible} videoRef={videoRef} />
-            <MobileOpeningWelcome sourceImage="/generated/intro-v2/posters/mobile/scene01.png"
-              timelineTime={timelineTime} />
+            <MobileOpeningWelcome sourceImage={MOBILE_CINEMATIC_OPENING_POSTER}
+              timelineTime={timelineTime} onImageReady={setWelcomeReady} />
             <CinematicAwardBadge sceneId={scene.id} />
           {atEnding ? (
             <section className="mobile-cinematic__ending" aria-label="홈페이지로 이동">
@@ -88,7 +92,8 @@ export function MobileCinematicWorld({ onEnter, onReturnToStatic }: MobileCinema
           )}
           </div>
 
-          <LoadingScreen isLoading={isLoading} progress={loadProgress} error={error} onRetry={retryLoad} />
+          <LoadingScreen isLoading={isLoading || welcomePending}
+            progress={welcomePending ? null : loadProgress} error={error} onRetry={retryLoad} />
           {onReturnToStatic && <MotionPreferenceControl mode="animated" onChange={onReturnToStatic} />}
           <div className={`mobile-cinematic__scroll-cue${progress > 0.035 ? ' is-hidden' : ''}`} aria-hidden="true">
             아래로 스크롤 <span>↓</span>
