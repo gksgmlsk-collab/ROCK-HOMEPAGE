@@ -45,7 +45,7 @@ export function AboutWorkspace({ section, onNavigate }: AboutWorkspaceProps) {
       {section === 'intro' && (
         <section className="about-intro" aria-labelledby="about-title">
           <div className="about-hero">
-            <img className="about-hero__background" src={scenes[0].sourceImage} alt={scenes[0].alt} fetchPriority="high" />
+            <img className="about-hero__background" src={scenes[0].sourceImage} alt={scenes[0].alt} loading="eager" />
             <div className="about-hero__shade" aria-hidden="true" />
             <div className="about-hero__copy">
               <p className="about-eyebrow">DOL AI LAB <span aria-hidden="true">·</span> 인천석암초등학교</p>

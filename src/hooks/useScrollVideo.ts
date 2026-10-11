@@ -12,6 +12,11 @@ type UseScrollVideoOptions = {
   desktopSources: readonly string[];
   mobileSources: readonly string[];
   timelineDuration: number;
+  /** Opt-in: idle on the same master from 0 to this time, with UI held at 0.
+   * Forward scroll holds the current frame until its mapped time catches up;
+   * returning to the top rearms only after the actual seek settles at 0.
+   * Disabled by default so the existing mobile journey is unchanged. */
+  openingIdleEnd?: number;
 };
 
 type LoadState = {
@@ -148,6 +153,7 @@ export function useScrollVideo({
   desktopSources,
   mobileSources,
   timelineDuration,
+  openingIdleEnd = 0,
 }: UseScrollVideoOptions) {
   const [progress, setProgress] = useState(0);
   const [displayedProgress, setDisplayedProgress] = useState(0);
@@ -602,23 +608,60 @@ export function useScrollVideo({
   useEffect(() => {
     let frame = 0;
     let last = performance.now();
+    let idleActive = false;
+    let idleSeconds = 0;
+    let takeoverFloor: number | null = null;
+    let previousTarget = targetTimeRef.current;
+    const resetClock = () => { last = performance.now(); };
+    if (openingIdleEnd > 0) document.addEventListener('visibilitychange', resetClock);
 
     const tick = (now: number) => {
       const elapsed = Math.min(80, now - last);
       last = now;
+      if (openingIdleEnd > 0 && document.hidden) {
+        frame = window.requestAnimationFrame(tick);
+        return;
+      }
 
       const target = targetTimeRef.current;
-      const current = smoothTimeRef.current;
+      let current = smoothTimeRef.current;
+      const atTop = progressRef.current === 0;
+      const video = videoRef.current;
+      if (openingIdleEnd > 0 && loadState.ready && video) {
+        if (idleActive && !atTop) {
+          // Handoff uses the currently displayed master, never a second layer.
+          current = video.currentTime;
+          takeoverFloor = current;
+          pendingSeekRef.current = null;
+          idleActive = false;
+        }
+        if (takeoverFloor !== null &&
+          (target >= takeoverFloor || atTop || target < previousTarget - 0.0001)) {
+          takeoverFloor = null;
+        }
+        if (!idleActive && atTop && current === 0 && !video.seeking &&
+          pendingSeekRef.current === null && video.currentTime <= 1 / 30) {
+          idleActive = true;
+          idleSeconds = 0;
+        }
+      }
+      previousTarget = target;
+      const seekTarget = takeoverFloor === null ? target : Math.max(target, takeoverFloor);
       const smoothing = 1 - Math.exp(-elapsed / (isMobile ? 82 : 58));
-      let next = current + (target - current) * smoothing;
+      let next = current + (seekTarget - current) * smoothing;
 
-      if (Math.abs(target - next) < 0.012) next = target;
+      if (idleActive) {
+        // One seek owner, eased 2.4s each way. Hidden tabs do not advance this clock.
+        idleSeconds = (idleSeconds + elapsed / 1000) % 4.8;
+        const end = Math.min(openingIdleEnd, Math.max(0, mediaDurationRef.current - 0.025));
+        next = end * (1 - Math.cos(idleSeconds * Math.PI / 2.4)) / 2;
+      } else if (Math.abs(seekTarget - next) < 0.012) next = seekTarget;
       smoothTimeRef.current = next;
-      const nextDisplayedProgress = clamp(
+      const nextDisplayedProgress = idleActive ? 0 : clamp(
         next / Math.max(0.001, mediaDurationRef.current),
       );
       setDisplayedProgress((previous) =>
-        Math.abs(previous - nextDisplayedProgress) > 0.00025
+        idleActive ? 0 : Math.abs(previous - nextDisplayedProgress) > 0.00025
           ? nextDisplayedProgress
           : previous,
       );
@@ -628,8 +671,11 @@ export function useScrollVideo({
     };
 
     frame = window.requestAnimationFrame(tick);
-    return () => window.cancelAnimationFrame(frame);
-  }, [applySeek, isMobile, loadState.ready]);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      document.removeEventListener('visibilitychange', resetClock);
+    };
+  }, [applySeek, isMobile, loadState.ready, openingIdleEnd, videoRef]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -638,13 +684,14 @@ export function useScrollVideo({
 
     const prime = async () => {
       if (primed || !loadState.ready) return;
-      const desiredTime = targetTimeRef.current;
+      const requestedTime = targetTimeRef.current;
 
       try {
         video.muted = true;
         await video.play();
         video.pause();
         primed = true;
+        const desiredTime = openingIdleEnd > 0 ? smoothTimeRef.current : requestedTime;
         smoothTimeRef.current = desiredTime;
         applySeek(desiredTime);
         markPainted();
@@ -665,7 +712,7 @@ export function useScrollVideo({
       window.removeEventListener('pointerdown', prime);
       window.removeEventListener('touchstart', prime);
     };
-  }, [applySeek, loadState.ready, markPainted, videoRef]);
+  }, [applySeek, loadState.ready, markPainted, openingIdleEnd, videoRef]);
 
   const scrollToTimelineTime = useCallback(
     (time: number, behavior: ScrollBehavior = 'smooth') => {

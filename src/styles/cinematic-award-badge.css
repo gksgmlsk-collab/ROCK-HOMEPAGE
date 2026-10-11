@@ -1,0 +1,23 @@
+.cinematic-award-badge {
+  position: absolute;
+  z-index: 7;
+  top: max(104px, calc(env(safe-area-inset-top) + 92px));
+  left: clamp(20px, 4vw, 64px);
+  width: clamp(104px, 9vw, 148px);
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 12px #0006);
+  pointer-events: none;
+}
+
+.mobile-cinematic .cinematic-award-badge {
+  /* The stage can be vertically centered: clear the fixed header while
+     keeping the badge anchored to the actual film, not its outer margins. */
+  top: max(12px, calc(104px - max(0px, (100dvh - 100vw * 1.7777778) / 2)));
+  left: 10px;
+  width: clamp(68px, 22vw, 104px);
+}
+
+@media (max-height: 520px) and (orientation: landscape) {
+  .mobile-cinematic .cinematic-award-badge { top: 10px; left: 8px; width: 56px; }
+}

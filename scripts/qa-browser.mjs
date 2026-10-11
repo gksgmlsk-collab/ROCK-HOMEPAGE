@@ -147,7 +147,7 @@ async function verifyAwardEvidence(page) {
       stats: ['242교', '20종', '67.4%'], report: 'https://lab-tq11.onrender.com/bangyeong.html',
       service: 'https://park-analysis-web-production.up.railway.app/' },
     { id: 'dolsoe-award', issuer: '법제처장상', prize: '전국 최우수상', competition: '제2회 법령데이터 활용 아이디어 공모전',
-      stats: ['약 400개', '10개', '6 → 1위'], report: 'https://lab-tq11.onrender.com/dolsoe.html',
+      stats: ['약 400개', '10개', '7,700 → 10'], report: 'https://lab-tq11.onrender.com/dolsoe.html',
       service: 'https://schoollaw-review-production.up.railway.app/web/' },
   ];
   assert.equal(await page.locator('.about-award[data-award]').count(), 2);

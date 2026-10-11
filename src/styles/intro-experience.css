@@ -36,3 +36,79 @@
   .intro-entry__button { transition: none; }
   .intro-entry__button:hover { transform: none; }
 }
+
+/* PC cinematic v3 only. The existing mobile introduction keeps its own styles. */
+.desktop-cinematic { height: 1040vh; height: 1040svh; }
+.desktop-cinematic .world-film.is-visible { opacity: 1; }
+.desktop-cinematic .world-vignette {
+  background: linear-gradient(180deg, #04102016, transparent 20%, transparent 78%, #04102024);
+}
+.desktop-cinematic .scene-copy {
+  max-width: min(34rem, 48vw);
+}
+.desktop-cinematic .scene-copy--emphasis {
+  padding: 1.05rem 1.3rem 1.2rem;
+  background: #071528d9;
+  border-color: #fff5;
+  backdrop-filter: blur(10px);
+}
+.desktop-cinematic .scene-copy--emphasis h2 {
+  font-size: clamp(2rem, 3.1vw, 3.5rem);
+}
+.desktop-cinematic .scene-copy--emphasis p {
+  font-size: clamp(1rem, 1.25vw, 1.35rem);
+  line-height: 1.55;
+}
+.desktop-cinematic[data-active-scene="app-sharing"] .scene-copy {
+  top: 100px;
+  left: 4vw;
+  right: auto;
+  bottom: auto;
+  width: min(325px, 30vw);
+  padding: 14px 16px;
+  border-radius: 14px;
+  text-align: left;
+}
+.desktop-cinematic[data-active-scene="app-sharing"] .scene-copy::before {
+  width: 28px;
+  height: 2px;
+  margin: 0 0 6px;
+}
+.desktop-cinematic[data-active-scene="app-sharing"] .scene-copy h2 {
+  margin-left: 0;
+  font-size: 26px;
+  line-height: 1.1;
+}
+.desktop-cinematic[data-active-scene="app-sharing"] .scene-copy p {
+  max-width: none;
+  margin: 6px 0 0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.desktop-cinematic-ending { position: absolute; z-index: 8; inset: 0; pointer-events: none; }
+.desktop-cinematic-ending__fallback { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #f9f7ef; }
+.desktop-cinematic-ending__entry {
+  position: absolute;
+  right: clamp(1.5rem, 4vw, 4.5rem);
+  bottom: max(2rem, 6vh, env(safe-area-inset-bottom));
+  padding: 1.1rem 1.4rem;
+  border: 1px solid #fffc;
+  border-radius: 1.5rem;
+  background: #fffdf2e8;
+  box-shadow: 0 12px 36px #463d2029;
+  backdrop-filter: blur(7px);
+  pointer-events: auto;
+}
+.desktop-cinematic-ending__entry .intro-entry { gap: .9rem; }
+.desktop-cinematic-ending__entry .intro-entry > p { color: #365245; font-size: .95rem; line-height: 1.6; font-weight: 600; }
+.desktop-cinematic-ending__entry .intro-entry__button { color: #fffdf4; border-color: #255540; background: #285e45; box-shadow: 0 5px 16px #16372524; }
+.desktop-cinematic-ending__entry .intro-entry__button:hover { box-shadow: 0 9px 24px #16372538; }
+.desktop-cinematic-static .reduced-scene::after { display: none; }
+.desktop-cinematic-static .reduced-scene__copy { margin-bottom: 2rem; }
+.desktop-cinematic-static__ending { position: relative; min-height: 100vh; min-height: 100svh; background: #faf8f0; }
+.desktop-cinematic-static__ending > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+@media (max-height: 600px) {
+  .desktop-cinematic-ending__entry { right: 1.4rem; bottom: 1.4rem; padding: .85rem 1rem; }
+  .desktop-cinematic-ending__entry .intro-entry > p { font-size: .82rem; }
+  .desktop-cinematic-ending__entry .intro-entry__button { min-height: 52px; padding: .75rem 1.15rem; }
+}

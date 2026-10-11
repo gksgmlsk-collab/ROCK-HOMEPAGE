@@ -14,6 +14,40 @@ npm-debug.log*
 /generation/raw/
 /generation/renders/
 
+# Intro v2 local render sources and compositing intermediates
+/generation/intro-v2/raw/
+/generation/intro-v2/assembly/
+/generation/intro-v2/gold/
+/generation/intro-v2/masks/
+/generation/intro-v2/processed/
+/generation/intro-v2/*contact.png
+/generation/intro-v2/*-midpoint.png
+
+# Intro v3 PC camera-chain authoring sources
+/generation/intro-v3/raw/
+/generation/intro-v3/frames/
+/generation/intro-v3/assembly/
+/generation/intro-v3/prepared/
+/generation/intro-v3/revision-sharing/raw/
+/generation/intro-v3/revision-sharing/frames/
+/generation/intro-v3/revision-sharing/assembly/
+/generation/intro-v3/revision-sharing/backups/
+/public/generated/intro-v3/desktop-master-sharing-candidate.mp4
+/generation/intro-v3/gold-portal/overlay/
+/generation/intro-v3/gold-portal/assembly/
+/generation/intro-v3/gold-portal/backups/
+/public/generated/intro-v3/desktop-master-gold-candidate.mp4
+/generation/intro-v3/sharing-dynamic/raw/
+/generation/intro-v3/sharing-dynamic/frames/
+/generation/intro-v3/sharing-dynamic/assembly/
+/generation/intro-v3/sharing-dynamic/backups/
+/generation/intro-v3/sharing-dynamic/text-repair/
+/public/generated/intro-v3/desktop-master-sharing-dynamic-candidate.mp4
+/generation/intro-v3/opening-fix/backups/
+/generation/intro-v3/opening-fix/assembly/
+/generation/intro-v3/opening-fix/frames/
+/public/generated/intro-v3/desktop-master-opening-fix-candidate.mp4
+
 # Runtime media that is not referenced by the deployed site
 public/generated/frames/desktop/
 public/generated/scenes/
@@ -25,6 +59,14 @@ public/assets/brand/
 public/assets/characters/
 public/assets/portrait/
 public/assets/scene5_services_apps-v2.png
+
+# Local environment and credential files
+# Native mobile cinematic authoring intermediates
+/generation/intro-mobile-v3/raw/
+/generation/intro-mobile-v3/boundaries/
+/generation/intro-mobile-v3/assembly/
+/generation/intro-mobile-v3/logo-portrait.png
+/generation/intro-mobile-v3/logo-upload.webp
 
 # Local environment and credential files
 .env*

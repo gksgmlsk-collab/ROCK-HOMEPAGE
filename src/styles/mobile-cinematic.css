@@ -1,0 +1,135 @@
+/* Native portrait journey only: PC composition and playback stay independent. */
+.mobile-cinematic { height: 1050vh; height: 1050svh; }
+.mobile-cinematic .scroll-world__sticky { background: #152620; }
+.mobile-cinematic__backdrop {
+  position: absolute; inset: -5%;
+  background-size: cover; background-position: center;
+  filter: blur(45px) saturate(.65) brightness(.42);
+  opacity: .7; pointer-events: none;
+}
+.mobile-cinematic[data-tone="light"] .scroll-world__sticky { background: #eee9db; }
+.mobile-cinematic[data-tone="light"] .mobile-cinematic__backdrop { filter: blur(45px) saturate(.65) brightness(.95); opacity: .38; }
+.mobile-cinematic__stage {
+  position: absolute;
+  top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: min(100%, 56.25vh); width: min(100%, 56.25dvh);
+  aspect-ratio: 9 / 16;
+  overflow: hidden;
+}
+.mobile-cinematic .poster-stack { background: transparent; }
+.mobile-cinematic .poster-layer__backdrop { display: none; }
+.mobile-cinematic .mobile-cinematic__film { object-fit: contain; object-position: center; background: transparent; }
+.mobile-cinematic .world-film.is-visible { opacity: 1; }
+.mobile-cinematic__navigation {
+  position: absolute; z-index: 8;
+  right: max(.8rem, env(safe-area-inset-right));
+  bottom: max(.65rem, env(safe-area-inset-bottom));
+  left: max(.8rem, env(safe-area-inset-left));
+  display: grid; justify-items: center; gap: .4rem;
+  color: #fff9ea;
+}
+.mobile-cinematic[data-tone="light"] .mobile-cinematic__navigation { color: #244b3a; }
+.mobile-cinematic__story {
+  box-sizing: border-box; width: min(100%, 28rem); padding: .75rem 1rem;
+  border: 1px solid #e8ce8b60; border-radius: 18px;
+  background: #17342ed9; color: #fffaf0; text-align: left;
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 8px 28px #07191130;
+}
+.mobile-cinematic[data-tone="light"] .mobile-cinematic__story {
+  background: #fffdf5d9; border-color: #ffffff8c; color: #204d39;
+}
+.mobile-cinematic__category {
+  display: flex; align-items: center; gap: .5rem; margin: 0;
+  font-size: .72rem; line-height: 1.4; font-weight: 750; color: #efd48f;
+}
+.mobile-cinematic[data-tone="light"] .mobile-cinematic__category { color: #647448; }
+.mobile-cinematic__category span { font-size: .65rem; letter-spacing: .08em; opacity: .8; }
+.mobile-cinematic__story h2 {
+  margin: .2rem 0 0; font-size: clamp(1.65rem, 6.8vw, 2rem); line-height: 1.25;
+  font-weight: 850; letter-spacing: -.04em; word-break: keep-all; overflow-wrap: anywhere;
+}
+.mobile-cinematic__story[data-story-scene="school"] { padding: .55rem .85rem; }
+.mobile-cinematic__story[data-story-scene="school"] h2 { margin-top: 0; font-size: clamp(1.3rem, 5.5vw, 1.7rem); }
+.mobile-cinematic__story[data-story-scene="school"] .mobile-cinematic__category { display: none; }
+.mobile-cinematic__story[data-story-scene="school"] .mobile-cinematic__description { margin-top: .2rem; font-size: .85rem; line-height: 1.45; }
+.mobile-cinematic__description {
+  margin: .35rem 0 0; font-size: .94rem; line-height: 1.55; font-weight: 550;
+  word-break: keep-all; overflow-wrap: anywhere; color: #f4f0e4;
+}
+.mobile-cinematic[data-tone="light"] .mobile-cinematic__description { color: #344f42; }
+.mobile-cinematic .journey-progress {
+  position: relative; inset: auto; transform: none;
+  display: grid; grid-template-columns: 1fr; grid-template-rows: auto;
+  width: min(100%, 21rem); color: #fffdf1;
+  padding-inline: .35rem; border-radius: 100px; background: #17342e78;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.mobile-cinematic .journey-progress__line { display: none; }
+.mobile-cinematic .journey-progress__line > span { transform: scaleX(var(--journey-progress)); transform-origin: left; background: #e2ba61; }
+.mobile-cinematic .journey-progress ol { grid-area: 1 / 1; flex-direction: row; justify-content: space-between; gap: 0; margin-top: 0; }
+.mobile-cinematic .journey-progress button { width: 40px; height: 32px; }
+.mobile-cinematic .journey-progress button > span { border-color: currentColor; }
+.mobile-cinematic .journey-progress button.is-active > span { background: #d6b66f; border-color: #d6b66f; box-shadow: 0 0 12px #e2ba6150; }
+.mobile-cinematic .journey-progress p { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.mobile-cinematic__scroll-cue {
+  position: absolute; z-index: 8;
+  top: max(78px, calc(env(safe-area-inset-top) + 68px)); left: 50%; transform: translateX(-50%);
+  padding: .3rem .8rem; border: 1px solid #fff9; border-radius: 100px;
+  background: #fffdf1e8; color: #315240; font-size: .68rem; font-weight: 750; white-space: nowrap;
+  transition: opacity .2s; pointer-events: none;
+}
+.mobile-cinematic__scroll-cue span { margin-left: .4rem; }
+.mobile-cinematic__scroll-cue.is-hidden { opacity: 0; }
+.mobile-cinematic__ending {
+  position: absolute; z-index: 8;
+  bottom: max(.8rem, env(safe-area-inset-bottom)); left: 1rem; right: 1rem;
+  display: grid; justify-items: center;
+}
+.mobile-cinematic__ending .intro-entry { gap: .45rem; }
+.mobile-cinematic__ending .intro-entry > p { display: none; }
+.mobile-cinematic__ending .intro-entry__button,
+.mobile-cinematic-static .intro-entry__button {
+  min-height: 58px; padding: .9rem 1.65rem; gap: 2rem;
+  color: #fffdf4; background: #285e45; border-color: #285e45;
+  box-shadow: 0 6px 22px #16372535; font-size: 1.02rem;
+}
+.mobile-cinematic .motion-preference--animated { right: 1rem; bottom: max(.8rem, env(safe-area-inset-bottom)); }
+.mobile-cinematic .load-status { top: max(115px, calc(env(safe-area-inset-top) + 100px)); }
+.mobile-cinematic-static { padding-top: max(104px, calc(env(safe-area-inset-top) + 88px)); background: #f4f0e5; color: #234636; }
+.mobile-cinematic-static__scene { display: grid; justify-items: center; gap: 1.4rem; padding: 1rem max(1rem, env(safe-area-inset-right)) 3rem max(1rem, env(safe-area-inset-left)); }
+.mobile-cinematic-static__scene > img { width: min(100%, 34rem); height: auto; border-radius: .75rem; }
+.mobile-cinematic-static__copy { max-width: 32rem; text-align: center; }
+.mobile-cinematic-static__copy h2 { margin: 0; font-size: 1.55rem; }
+.mobile-cinematic-static__copy p { margin: .55rem 0 0; font-size: .93rem; line-height: 1.6; }
+.mobile-cinematic-static .intro-entry > p { color: #365245; }
+.mobile-cinematic-static .motion-preference { position: relative; inset: auto; margin: .5rem auto 1rem; }
+@media (min-width: 601px) and (orientation: portrait) {
+  .mobile-cinematic__scroll-cue { top: max(100px, calc(env(safe-area-inset-top) + 90px)); }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  .intro-site:has(.mobile-cinematic) .intro-masthead { padding-inline: max(.75rem, env(safe-area-inset-right)); }
+  .intro-site:has(.mobile-cinematic) .intro-skip {
+    box-sizing: border-box; width: min(13.5rem, calc((100vw - 100svh * .5625) / 2 - 1.75rem));
+    min-height: 50px; padding: .75rem .7rem; font-size: .85rem; gap: .65rem;
+    white-space: normal; text-align: center;
+  }
+  .intro-site:has(.mobile-cinematic) .intro-skip > span { font-size: 1.1rem; }
+  .mobile-cinematic__navigation { left: .5rem; right: .5rem; bottom: .5rem; gap: .25rem; }
+  .mobile-cinematic__story { padding: .6rem; border-radius: 12px; }
+  .mobile-cinematic__story h2 { font-size: 1.25rem; }
+  .mobile-cinematic__story[data-story-scene="school"] { padding: .25rem .4rem; }
+  .mobile-cinematic__story[data-story-scene="school"] h2 { font-size: clamp(.65rem, 3.5dvh, .8rem); }
+  .mobile-cinematic__story[data-story-scene="school"] .mobile-cinematic__description { margin-top: .1rem; font-size: clamp(.55rem, 2.8dvh, .65rem); line-height: 1.35; }
+  .mobile-cinematic__description { font-size: .82rem; line-height: 1.45; }
+  .mobile-cinematic__category { display: none; }
+  .mobile-cinematic .journey-progress button { width: 24px; height: 24px; }
+  .mobile-cinematic__scroll-cue { left: 1rem; top: auto; bottom: 1.5rem; transform: none; }
+  .mobile-cinematic__ending { left: .5rem; right: .5rem; }
+  .mobile-cinematic__ending .intro-entry__button { min-height: 46px; padding: .65rem .7rem; font-size: .85rem; gap: .5rem; }
+}
+@media (max-width: 360px) and (orientation: portrait) {
+  .mobile-cinematic__navigation { left: .65rem; right: .65rem; }
+  .mobile-cinematic__story { padding: .7rem .85rem; }
+  .mobile-cinematic__description { font-size: .9rem; }
+}

@@ -14,12 +14,13 @@ import {
 } from '../data/scenes';
 import { useScrollVideo } from '../hooks/useScrollVideo';
 import { EndSequence } from './EndSequence';
+import { DesktopCinematicStatic, DesktopCinematicWorld } from './DesktopCinematicWorld';
+import { MobileCinematicStatic, MobileCinematicWorld } from './MobileCinematicWorld';
 import { IntroAmbientVideo } from './IntroAmbientVideo';
 import { LoadingScreen } from './LoadingScreen';
 import { MotionPreferenceControl } from './MotionPreferenceControl';
 import { PosterStack } from './PosterStack';
 import { ProgressIndicator } from './ProgressIndicator';
-import { ReducedMotionExperience } from './ReducedMotionExperience';
 import { SceneOverlay } from './SceneOverlay';
 
 function subscribeToMediaQuery(
@@ -50,6 +51,22 @@ function usePrefersReducedMotion() {
   }, []);
 
   return reduced;
+}
+
+// Phones/tablets retain their portrait journey, including landscape phones.
+const DESKTOP_CINEMATIC_QUERY = '(min-width: 861px) and (hover: hover) and (pointer: fine)';
+
+function useDesktopCinematic() {
+  const [desktop, setDesktop] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia(DESKTOP_CINEMATIC_QUERY).matches,
+  );
+  useEffect(() => {
+    const media = window.matchMedia(DESKTOP_CINEMATIC_QUERY);
+    const update = () => setDesktop(media.matches);
+    update();
+    return subscribeToMediaQuery(media, update);
+  }, []);
+  return desktop;
 }
 
 const MOTION_OVERRIDE_KEY = 'dol-ai-lab-motion-override';
@@ -120,13 +137,22 @@ function getOriginalFrameOpacity(
 
 export function ScrollWorld({ onEnter }: { onEnter: () => void }) {
   const reducedMotion = usePrefersReducedMotion();
+  const desktopCinematic = useDesktopCinematic();
   const { animatedOverride, enableAnimation, followSystemPreference } =
     useMotionOverride();
 
+  if (desktopCinematic) {
+    return reducedMotion && !animatedOverride ? (
+      <DesktopCinematicStatic onEnter={onEnter} onEnableAnimation={enableAnimation} />
+    ) : (
+      <DesktopCinematicWorld onEnter={onEnter} onReturnToStatic={reducedMotion ? followSystemPreference : undefined} />
+    );
+  }
+
   return reducedMotion && !animatedOverride ? (
-    <ReducedMotionExperience onEnableAnimation={enableAnimation} onEnter={onEnter} />
+    <MobileCinematicStatic onEnableAnimation={enableAnimation} onEnter={onEnter} />
   ) : (
-    <AnimatedScrollWorld
+    <MobileCinematicWorld
       onEnter={onEnter}
       onReturnToStatic={reducedMotion ? followSystemPreference : undefined}
     />
@@ -138,7 +164,7 @@ type AnimatedScrollWorldProps = {
   onReturnToStatic?: () => void;
 };
 
-function AnimatedScrollWorld({ onReturnToStatic, onEnter }: AnimatedScrollWorldProps) {
+export function AnimatedScrollWorld({ onReturnToStatic, onEnter }: AnimatedScrollWorldProps) {
   const containerRef = useRef<HTMLElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const enabledScenes = useMemo(

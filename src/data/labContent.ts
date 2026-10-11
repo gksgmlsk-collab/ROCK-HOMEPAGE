@@ -267,13 +267,13 @@ export const awards: Award[] = [
     team: '개발 · 박동훈',
     recognition: '왕중왕전 진출',
     summary:
-      '학교 사업계획과 최신 법령을 연결해 준수·누락·위반 가능성과 수정 권고를 제시합니다. 전국 본선 6개 팀 가운데 1위로 선정됐습니다.',
+      '학교 사업계획과 최신 법령을 연결해 준수·누락·위반 가능성과 수정 권고를 제시합니다.',
     image: '/assets/lab/dolsoe-research/dolsoe-page-01.png',
     imageAlt: 'AI 학교 사업계획 법령 검토 비서 돌쇠 소개서 표지',
     stats: [
       { value: '약 400개', label: '초등학교 관련 법령' },
       { value: '10개', label: '검토 분야' },
-      { value: '6 → 1위', label: '전국 본선 결과' },
+      { value: '7,700 → 10', label: '전국 본선 결과' },
     ],
     reportUrl: 'https://lab-tq11.onrender.com/dolsoe.html',
     serviceUrl: 'https://schoollaw-review-production.up.railway.app/web/',

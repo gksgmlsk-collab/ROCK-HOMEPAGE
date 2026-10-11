@@ -54,7 +54,6 @@
 .about-roster dl > div { display: grid; grid-template-columns: 80px 1fr; gap: 12px; padding: 16px 0; border-top: 1px solid #ffffff24; }
 .about-roster dt { padding-top: 3px; color: #adbfac; font-size: 11px; }
 .about-roster dd { display: flex; flex-wrap: wrap; gap: 12px 17px; margin: 0; font-size: 14px; font-weight: 500; }
-.about-roster dl > div:first-child dd { font-size: 21px; }
 .about-departments { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .about-departments article { padding: 22px; border: 1px solid var(--about-line); border-radius: 13px; background: #fff; }
 .about-department__heading { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
