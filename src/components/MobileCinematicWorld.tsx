@@ -14,6 +14,7 @@ import { EnterHomepage } from './EndSequence';
 import { LoadingScreen } from './LoadingScreen';
 import { MotionPreferenceControl } from './MotionPreferenceControl';
 import { MobileOpeningLettering } from './MobileOpeningLettering';
+import { MobileOpeningWelcome } from './MobileOpeningWelcome';
 import { PosterStack } from './PosterStack';
 import { ProgressIndicator } from './ProgressIndicator';
 import { CinematicAwardBadge } from './CinematicAwardBadge';
@@ -63,6 +64,8 @@ export function MobileCinematicWorld({ onEnter, onReturnToStatic }: MobileCinema
               preload="metadata" muted playsInline disablePictureInPicture aria-hidden="true" />
             <MobileOpeningLettering sourceImage="/generated/intro-v2/posters/mobile/scene01.png"
               timelineTime={timelineTime} visible={videoVisible} videoRef={videoRef} />
+            <MobileOpeningWelcome sourceImage="/generated/intro-v2/posters/mobile/scene01.png"
+              timelineTime={timelineTime} />
             <CinematicAwardBadge sceneId={scene.id} />
           {atEnding ? (
             <section className="mobile-cinematic__ending" aria-label="홈페이지로 이동">
