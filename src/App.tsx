@@ -3,15 +3,20 @@ import { AboutWorkspace } from './components/AboutWorkspace';
 import { AppWorkspace } from './components/AppWorkspace';
 import { SiteHeader } from './components/SiteHeader';
 import { ScrollWorld } from './components/ScrollWorld';
-import { isAboutView, readSiteView, viewHashes, viewLabels, type SiteView } from './data/siteNavigation';
+import { isAboutView, readInitialSiteView, readSiteView, viewHashes, viewLabels, type SiteView } from './data/siteNavigation';
 
 export default function App() {
-  const [view, setView] = useState<SiteView>(readSiteView);
+  const [view, setView] = useState<SiteView>(readInitialSiteView);
   const [navigationRevision, setNavigationRevision] = useState(0);
   const mainRef = useRef<HTMLElement>(null);
   const mounted = useRef(false);
 
   useEffect(() => {
+    // Normalize a saved homepage address once; subsequent menu/skip navigation
+    // to #/about must remain a normal content route, without another intro.
+    if (readSiteView() === 'about') {
+      window.history.replaceState(window.history.state, '', viewHashes.intro);
+    }
     const previousRestoration = window.history.scrollRestoration;
     window.history.scrollRestoration = 'manual';
     const sync = () => setView(readSiteView());

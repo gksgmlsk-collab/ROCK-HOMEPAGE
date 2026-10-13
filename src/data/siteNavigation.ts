@@ -31,4 +31,11 @@ export function readSiteView(): SiteView {
     ?? legacyViews[hash] ?? 'intro';
 }
 
+/** A newly opened homepage starts with the film, including saved about links.
+ * In-page navigation still uses readSiteView so entering the homepage works normally. */
+export function readInitialSiteView(): SiteView {
+  const requestedView = readSiteView();
+  return requestedView === 'about' ? 'intro' : requestedView;
+}
+
 export const isAboutView = (view: SiteView) => ['about', 'awards', 'organization'].includes(view);
