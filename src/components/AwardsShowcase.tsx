@@ -36,20 +36,21 @@ export function AwardsShowcase() {
       <div className="awards-showcase__grid">
         {awards.map((award, index) => {
           const [rank, issuer] = award.award.split(' · ');
+          const reportLabel = award.reportLabel ?? '공식 수상 보고';
           return (
-            <article className="about-award award-showcase-card" data-award={award.id} key={award.id}>
+            <article className={`about-award award-showcase-card${award.id === 'dolsoe-award' || award.id === 'data-rock' ? ' award-showcase-card--featured' : ''}`} data-award={award.id} key={award.id}>
               <header className="award-showcase-card__honor" aria-label={award.award}>
                 {award.badgeImage && award.badgeImageAlt ? (
                   <img className="award-showcase-card__digital-badge" src={award.badgeImage} alt={award.badgeImageAlt} loading="lazy" decoding="async" />
                 ) : <LaurelMark />}
                 <div>
-                  <p className="award-showcase-card__issuer">{issuer}</p>
-                  <p className="award-showcase-card__rank">{rank}</p>
+                  <p className="award-showcase-card__issuer">{issuer ?? rank}</p>
+                  {issuer && <p className="award-showcase-card__rank">{rank}</p>}
                 </div>
                 <span className="award-showcase-card__index" aria-hidden="true">0{index + 1}</span>
               </header>
 
-              <a className="award-showcase-card__media" href={award.reportUrl} target="_blank" rel="noopener noreferrer" aria-label={`${award.title.replaceAll('\n', ' ')} 공식 수상 보고, 새 창`}>
+              <a className="award-showcase-card__media" href={award.reportUrl} target="_blank" rel="noopener noreferrer" aria-label={`${award.title.replaceAll('\n', ' ')} ${reportLabel}, 새 창`}>
                 <img src={award.image} alt={award.imageAlt} loading="lazy" decoding="async" />
                 <span className="award-showcase-card__media-label">수상작 자세히 보기 <span aria-hidden="true">↗</span></span>
               </a>
@@ -66,7 +67,7 @@ export function AwardsShowcase() {
                 </dl>
 
                 <div className="award-showcase-card__actions">
-                  <a href={award.reportUrl} target="_blank" rel="noopener noreferrer">공식 수상 보고 <span aria-hidden="true">↗</span></a>
+                  <a href={award.reportUrl} target="_blank" rel="noopener noreferrer">{reportLabel} <span aria-hidden="true">↗</span></a>
                   <a href={award.serviceUrl} target="_blank" rel="noopener noreferrer">관련 서비스 <span aria-hidden="true">↗</span></a>
                 </div>
               </div>

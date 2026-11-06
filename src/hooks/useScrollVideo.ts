@@ -17,6 +17,8 @@ type UseScrollVideoOptions = {
    * returning to the top rearms only after the actual seek settles at 0.
    * Disabled by default so the existing mobile journey is unchanged. */
   openingIdleEnd?: number;
+  /** Native muted playback at the top, then the same film returns to scroll control. */
+  openingPlaybackEnd?: number;
 };
 
 type LoadState = {
@@ -129,6 +131,7 @@ export function useScrollVideo({
   mobileSources,
   timelineDuration,
   openingIdleEnd = 0,
+  openingPlaybackEnd = 0,
 }: UseScrollVideoOptions) {
   const [progress, setProgress] = useState(0);
   const [displayedProgress, setDisplayedProgress] = useState(0);
@@ -149,6 +152,7 @@ export function useScrollVideo({
     connectionIsConstrained(getNetworkConnection()),
   );
   const [loadAttempt, setLoadAttempt] = useState(0);
+  const [openingPlaybackBlocked, setOpeningPlaybackBlocked] = useState(false);
   const [loadState, setLoadState] = useState<LoadState>({
     isLoading: true,
     loadProgress: null,
@@ -369,6 +373,43 @@ export function useScrollVideo({
     setLoadAttempt((attempt) => attempt + 1);
   }, []);
 
+  const resumeOpeningPlayback = useCallback(() => {
+    const video = videoRef.current;
+    if (!video || openingPlaybackEnd <= 0 || !loadState.ready ||
+      progressRef.current !== 0 || document.hidden) return;
+    video.defaultMuted = true;
+    video.muted = true;
+    video.playsInline = true;
+    void video.play().then(() => {
+      setOpeningPlaybackBlocked(false);
+      markPainted();
+    }).catch(() => {
+      // Low-power modes and embedded browsers may require a genuine tap.
+      if (progressRef.current === 0) setOpeningPlaybackBlocked(true);
+    });
+  }, [loadState.ready, markPainted, openingPlaybackEnd, videoRef]);
+
+  useEffect(() => {
+    if (openingPlaybackEnd <= 0) return;
+    const video = videoRef.current;
+    if (!video) return;
+    const handleVisibility = () => {
+      if (document.hidden) video.pause();
+      else resumeOpeningPlayback();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('pointerdown', resumeOpeningPlayback, { passive: true });
+    window.addEventListener('touchstart', resumeOpeningPlayback, { passive: true });
+    video.addEventListener('canplay', resumeOpeningPlayback);
+    resumeOpeningPlayback();
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('pointerdown', resumeOpeningPlayback);
+      window.removeEventListener('touchstart', resumeOpeningPlayback);
+      video.removeEventListener('canplay', resumeOpeningPlayback);
+    };
+  }, [openingPlaybackEnd, resumeOpeningPlayback, videoRef]);
+
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -586,13 +627,14 @@ export function useScrollVideo({
     let idleSeconds = 0;
     let takeoverFloor: number | null = null;
     let previousTarget = targetTimeRef.current;
+    const hasOpening = openingIdleEnd > 0 || openingPlaybackEnd > 0;
     const resetClock = () => { last = performance.now(); };
-    if (openingIdleEnd > 0) document.addEventListener('visibilitychange', resetClock);
+    if (hasOpening) document.addEventListener('visibilitychange', resetClock);
 
     const tick = (now: number) => {
       const elapsed = Math.min(80, now - last);
       last = now;
-      if (openingIdleEnd > 0 && document.hidden) {
+      if (hasOpening && document.hidden) {
         frame = window.requestAnimationFrame(tick);
         return;
       }
@@ -601,7 +643,9 @@ export function useScrollVideo({
       let current = smoothTimeRef.current;
       const atTop = progressRef.current === 0;
       const video = videoRef.current;
-      if (openingIdleEnd > 0 && loadState.ready && video) {
+      // Autoplay can start after a visitor has already scrolled past the opening.
+      if (openingPlaybackEnd > 0 && !atTop && video && !video.paused) video.pause();
+      if (hasOpening && loadState.ready && video) {
         if (idleActive && !atTop) {
           // Handoff uses the currently displayed master, never a second layer.
           current = video.currentTime;
@@ -613,10 +657,15 @@ export function useScrollVideo({
           (target >= takeoverFloor || atTop || target < previousTarget - 0.0001)) {
           takeoverFloor = null;
         }
-        if (!idleActive && atTop && current === 0 && !video.seeking &&
-          pendingSeekRef.current === null && video.currentTime <= 1 / 30) {
+        if (!idleActive && atTop && (openingPlaybackEnd > 0 ||
+          (current === 0 && !video.seeking && pendingSeekRef.current === null && video.currentTime <= 1 / 30))) {
           idleActive = true;
           idleSeconds = 0;
+          if (openingPlaybackEnd > 0) {
+            pendingSeekRef.current = null;
+            if (video.currentTime >= openingPlaybackEnd) video.currentTime = 0;
+            resumeOpeningPlayback();
+          }
         }
       }
       previousTarget = target;
@@ -624,7 +673,14 @@ export function useScrollVideo({
       const smoothing = 1 - Math.exp(-elapsed / (isMobile ? 82 : 58));
       let next = current + (seekTarget - current) * smoothing;
 
-      if (idleActive) {
+      const nativeOpeningActive = idleActive && openingPlaybackEnd > 0;
+      if (nativeOpeningActive && video) {
+        // Do not seek every animation frame while native playback owns the film.
+        // This short, whole-frame opening loops until the visitor starts scrolling.
+        const end = Math.min(openingPlaybackEnd, mediaDurationRef.current - 0.025);
+        if (video.currentTime >= end && !video.seeking) video.currentTime = 0;
+        next = video.currentTime;
+      } else if (idleActive) {
         // One seek owner, eased 2.4s each way. Hidden tabs do not advance this clock.
         idleSeconds = (idleSeconds + elapsed / 1000) % 4.8;
         const end = Math.min(openingIdleEnd, Math.max(0, mediaDurationRef.current - 0.025));
@@ -646,7 +702,7 @@ export function useScrollVideo({
           ? nextDisplayedProgress
           : previous,
       );
-      if (loadState.ready) applySeek(next);
+      if (loadState.ready && !nativeOpeningActive) applySeek(next);
 
       frame = window.requestAnimationFrame(tick);
     };
@@ -656,9 +712,12 @@ export function useScrollVideo({
       window.cancelAnimationFrame(frame);
       document.removeEventListener('visibilitychange', resetClock);
     };
-  }, [applySeek, isMobile, loadState.ready, openingIdleEnd, videoRef]);
+  }, [applySeek, isMobile, loadState.ready, openingIdleEnd, openingPlaybackEnd, resumeOpeningPlayback, videoRef]);
 
   useEffect(() => {
+    // Native opening playback must keep running; the scroll-only priming path
+    // deliberately pauses after play() and would turn the opening into a still.
+    if (openingPlaybackEnd > 0) return;
     const video = videoRef.current;
     if (!video) return;
     let primed = false;
@@ -700,7 +759,7 @@ export function useScrollVideo({
       window.removeEventListener('pointerdown', prime);
       window.removeEventListener('touchstart', prime);
     };
-  }, [applySeek, loadState.ready, markPainted, openingIdleEnd, videoRef]);
+  }, [applySeek, loadState.ready, markPainted, openingIdleEnd, openingPlaybackEnd, videoRef]);
 
   const scrollToTimelineTime = useCallback(
     (time: number, behavior: ScrollBehavior = 'smooth') => {
@@ -725,6 +784,8 @@ export function useScrollVideo({
     shouldUseMobileSource,
     isConstrainedConnection,
     retryLoad,
+    openingPlaybackBlocked,
+    resumeOpeningPlayback,
     scrollToTimelineTime,
     ...loadState,
   };

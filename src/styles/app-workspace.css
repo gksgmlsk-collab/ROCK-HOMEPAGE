@@ -95,6 +95,12 @@
 .app-feature-grid--pair .app-feature__image-caption { bottom: 1rem; left: 2rem; right: 2rem; text-align: left; }
 .app-feature-grid--pair .app-feature__description { color: #d0d7d2; font-size: .85rem; }
 .app-feature-grid--pair .app-feature__actions { margin-top: auto; padding-top: 1.3rem; }
+.app-feature-grid--pair .app-feature[data-service='sorimoa'] { --feature-surface: #123c47; --feature-glow: #9de7da; border-color: #245a65; }
+.app-feature-grid--pair .app-feature[data-service='sorimoa'] .app-feature__image { background: radial-gradient(ellipse at 70% 0, #d9f2ed, #749d98 70%); }
+.app-feature-grid--pair .app-feature[data-service='sorimoa'] .app-feature__image img { top: 0; left: 0; width: 100%; height: 100%; padding: 16px 24px 36px; border: 0; border-radius: 0; object-fit: contain; object-position: center; box-shadow: none; transform: none; }
+.app-feature-grid--pair .app-feature[data-service='draconis'] .app-feature__image img { top: 0; left: 0; width: 100%; height: 100%; border: 0; border-radius: 0; object-fit: contain; object-position: center; transform: none; }
+.app-feature__recognition { margin: 1rem 0 0; padding: .75rem .9rem; border-left: 2px solid #e4c17c; color: #f3dfaa; background: #e4c17c0b; font-size: .78rem; line-height: 1.8; }
+.app-dialog__recognition { padding: 1rem; border-left: 3px solid #a47a32; border-radius: 0 8px 8px 0; color: #645020; background: #f4efdf; font-size: .9rem; line-height: 1.8; }
 
 .app-resources { margin-top: 1rem; }
 .app-resources__bar { padding: 1rem 0; color: var(--app-ink); }

@@ -7,8 +7,8 @@ export const MOBILE_CINEMATIC_MASTER = ['/generated/intro-mobile-v3/mobile-maste
 export const MOBILE_CINEMATIC_LOGO = '/generated/intro-mobile-v3/posters/scene07.png';
 export const MOBILE_CINEMATIC_OPENING_POSTER = '/generated/intro-mobile-v3/front-welcome.webp';
 
-// The reviewed clean opening gently blinks before the gate starts to open.
-export const MOBILE_CINEMATIC_OPENING_IDLE_END = 0.2;
+// Play the clean opening natively before scrolling takes over the same film.
+export const MOBILE_CINEMATIC_OPENING_PLAYBACK_END = 0.85;
 
 // The camera reaches the fantasy doorway before leg 01 finishes. Introduce
 // Draconis at that arrival, rather than waiting for the 8-second clip seam.

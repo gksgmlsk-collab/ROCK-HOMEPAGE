@@ -1,9 +1,9 @@
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import {
   MOBILE_CINEMATIC_DURATION,
   MOBILE_CINEMATIC_ENDING_START,
   MOBILE_CINEMATIC_MASTER,
-  MOBILE_CINEMATIC_OPENING_IDLE_END,
+  MOBILE_CINEMATIC_OPENING_PLAYBACK_END,
   MOBILE_CINEMATIC_OPENING_POSTER,
   mobileCinematicCategories,
   mobileCinematicSceneAtTime,
@@ -14,7 +14,6 @@ import { EnterHomepage } from './EndSequence';
 import { LoadingScreen } from './LoadingScreen';
 import { MotionPreferenceControl } from './MotionPreferenceControl';
 import { MobileOpeningLettering } from './MobileOpeningLettering';
-import { MobileOpeningWelcome } from './MobileOpeningWelcome';
 import { PosterStack } from './PosterStack';
 import { ProgressIndicator } from './ProgressIndicator';
 import { CinematicAwardBadge } from './CinematicAwardBadge';
@@ -28,25 +27,22 @@ type MobileCinematicWorldProps = {
 export function MobileCinematicWorld({ onEnter, onReturnToStatic }: MobileCinematicWorldProps) {
   const containerRef = useRef<HTMLElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  // null = still loading; false = failed, so the existing video remains the fallback.
-  const [welcomeReady, setWelcomeReady] = useState<boolean | null>(null);
   const {
     progress, timelineTime, ready, painted, isLoading, loadProgress, error,
-    retryLoad, scrollToTimelineTime,
+    retryLoad, scrollToTimelineTime, openingPlaybackBlocked, resumeOpeningPlayback,
   } = useScrollVideo({
     containerRef, videoRef,
     // A landscape phone and a slow connection still get the same portrait film.
     desktopSources: MOBILE_CINEMATIC_MASTER,
     mobileSources: MOBILE_CINEMATIC_MASTER,
     timelineDuration: MOBILE_CINEMATIC_DURATION,
-    openingIdleEnd: MOBILE_CINEMATIC_OPENING_IDLE_END,
+    openingPlaybackEnd: MOBILE_CINEMATIC_OPENING_PLAYBACK_END,
   });
 
   const scene = mobileCinematicSceneAtTime(timelineTime);
   const sceneIndex = mobileCinematicScenes.indexOf(scene);
   const nearbyPosters = mobileCinematicScenes.filter((_, index) => Math.abs(index - sceneIndex) <= 1);
-  const welcomePending = timelineTime < .25 && welcomeReady === null;
-  const videoVisible = ready && painted && !welcomePending;
+  const videoVisible = ready && painted;
   const atEnding = timelineTime >= MOBILE_CINEMATIC_ENDING_START;
 
   return (
@@ -64,12 +60,14 @@ export function MobileCinematicWorld({ onEnter, onReturnToStatic }: MobileCinema
               className={`world-film mobile-cinematic__film${videoVisible ? ' is-visible' : ''}`}
               data-source-variant="mobile" data-intro-version="mobile-v3"
               poster={MOBILE_CINEMATIC_OPENING_POSTER}
-              preload="metadata" muted playsInline disablePictureInPicture aria-hidden="true" />
-            <MobileOpeningLettering sourceImage={welcomeReady === false
-              ? '/generated/intro-v2/posters/mobile/scene01.png' : MOBILE_CINEMATIC_OPENING_POSTER}
+              preload="auto" autoPlay muted playsInline disablePictureInPicture aria-hidden="true" />
+            <MobileOpeningLettering sourceImage="/generated/intro-mobile-v3/opening-poster.png"
               timelineTime={timelineTime} visible={videoVisible} videoRef={videoRef} />
-            <MobileOpeningWelcome sourceImage={MOBILE_CINEMATIC_OPENING_POSTER}
-              timelineTime={timelineTime} onImageReady={setWelcomeReady} />
+            {openingPlaybackBlocked && progress === 0 && (
+              <button type="button" className="mobile-cinematic__play" onClick={resumeOpeningPlayback}>
+                <span aria-hidden="true">▶</span> 영상 재생
+              </button>
+            )}
             <CinematicAwardBadge sceneId={scene.id} />
           {atEnding ? (
             <section className="mobile-cinematic__ending" aria-label="홈페이지로 이동">
@@ -92,8 +90,8 @@ export function MobileCinematicWorld({ onEnter, onReturnToStatic }: MobileCinema
           )}
           </div>
 
-          <LoadingScreen isLoading={isLoading || welcomePending}
-            progress={welcomePending ? null : loadProgress} error={error} onRetry={retryLoad} />
+          <LoadingScreen isLoading={isLoading}
+            progress={loadProgress} error={error} onRetry={retryLoad} />
           {onReturnToStatic && <MotionPreferenceControl mode="animated" onChange={onReturnToStatic} />}
           <div className={`mobile-cinematic__scroll-cue${progress > 0.035 ? ' is-hidden' : ''}`} aria-hidden="true">
             아래로 스크롤 <span>↓</span>

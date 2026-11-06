@@ -20,6 +20,12 @@
 .mobile-cinematic .poster-layer__backdrop { display: none; }
 .mobile-cinematic .mobile-cinematic__film { object-fit: contain; object-position: center; background: transparent; }
 .mobile-cinematic .world-film.is-visible { opacity: 1; }
+.mobile-cinematic__play {
+  position: absolute; z-index: 9; top: 45%; left: 50%; transform: translate(-50%, -50%);
+  display: flex; align-items: center; gap: .6rem; min-height: 48px; padding: .8rem 1.2rem;
+  border: 1px solid #f4dda2; border-radius: 100px; background: #17342ef2;
+  color: #fff9ea; font: inherit; font-weight: 750; white-space: nowrap; cursor: pointer;
+}
 .mobile-cinematic__navigation {
   position: absolute; z-index: 8;
   right: max(.8rem, env(safe-area-inset-right));

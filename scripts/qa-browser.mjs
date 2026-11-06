@@ -11,7 +11,7 @@ const report = {
   responsive: [], screenshots: [], consoleErrors: [], pageErrors: [], httpErrors: [], failedRequests: [],
 };
 const areas = [
-  { id: 'student', label: '학생지원', count: 10 },
+  { id: 'student', label: '학생지원', count: 11 },
   { id: 'safety', label: '학교안전', count: 5 },
   { id: 'admin', label: '학교행정', count: 8 },
 ];
@@ -83,6 +83,14 @@ async function openRoute(page, route) {
   // Each scenario starts fresh even if the preceding one used the same route.
   if (page.url() === url) await page.reload({ waitUntil: 'domcontentloaded' });
   else await page.goto(url, { waitUntil: 'domcontentloaded' });
+  if (route === '#/about') {
+    // A freshly loaded saved homepage address intentionally opens the intro.
+    // Enter through its real shortcut before inspecting the ordinary homepage.
+    await page.waitForFunction(() =>
+      (location.hash === '#/about' && document.querySelector('.about-workspace[data-section="intro"]')) ||
+      (location.hash === '#/intro' && document.querySelector('.intro-skip')));
+    if (new URL(page.url()).hash === '#/intro') await page.locator('.intro-skip').click();
+  }
   await waitForRoute(page, route);
 }
 
@@ -91,7 +99,7 @@ async function waitForRoute(page, route) {
   if (route === '#/intro' || route === '#journey-start') {
     await page.locator('.intro-site').waitFor({ state: 'visible' });
     assert.equal(await page.locator('main').count(), 1, 'one main landmark');
-    assert.equal(await page.locator('.scroll-world, .reduced-world').count(), 1,
+    assert.equal(await page.locator('.scroll-world, .reduced-world, .mobile-cinematic-static').count(), 1,
       'the introduction has one motion-aware experience');
     assert.equal(await page.locator('.app-workspace, .about-workspace, .site-header').count(), 0,
       'the introduction does not mount the homepage behind it');
@@ -143,22 +151,102 @@ async function verifyExternalLinks(page) {
 
 async function verifyAwardEvidence(page) {
   const expected = [
+    { id: 'dolsoe-award', issuer: '법제처장상', prize: '전국 최우수상', competition: '제2회 법령데이터 활용 아이디어 공모전',
+      stats: ['약 400개', '10개', '7,700 → 10', '전국 TOP 10 선정', '왕중왕전 진출'], report: 'https://lab-tq11.onrender.com/dolsoe.html',
+      service: 'https://schoollaw-review-production.up.railway.app/web/' },
     { id: 'data-rock', issuer: '교육부장관상', prize: '일반부 대상', competition: '제8회 교육 공공데이터 AI 활용대회',
       stats: ['242교', '20종', '67.4%'], report: 'https://lab-tq11.onrender.com/bangyeong.html',
       service: 'https://park-analysis-web-production.up.railway.app/' },
-    { id: 'dolsoe-award', issuer: '법제처장상', prize: '전국 최우수상', competition: '제2회 법령데이터 활용 아이디어 공모전',
-      stats: ['약 400개', '10개', '7,700 → 10'], report: 'https://lab-tq11.onrender.com/dolsoe.html',
-      service: 'https://schoollaw-review-production.up.railway.app/web/' },
+    { id: 'sorimoa-award', issuer: '공모전 최우수상', prize: '이주배경학생 지도사례', competition: '제18회 다문화교육 우수사례 공모전',
+      stats: ['이주배경학생 지도사례', '이창성', '소리모아', '8단계', '듣기·말하기', '교실·가정'], report: '/assets/lab/sorimoa/program-overview.pptx',
+      service: 'https://sorimoa.pages.dev/' },
   ];
-  assert.equal(await page.locator('.about-award[data-award]').count(), 2);
+  assert.equal(await page.locator('.about-award[data-award]').count(), expected.length);
+  assert.deepEqual(await page.locator('.about-award[data-award]').evaluateAll(cards =>
+    cards.map(card => card.dataset.award)), expected.map(award => award.id),
+  'award priority remains Dolsoe, BeyondRadius, then Sorimoa');
+  const hierarchy = await page.locator('.awards-showcase__grid').evaluate(grid => {
+    const bounds = element => {
+      const rect = element.getBoundingClientRect();
+      return { x: rect.x, y: rect.y, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height };
+    };
+    return {
+      viewport: innerWidth, grid: bounds(grid),
+      cards: [...grid.querySelectorAll('.award-showcase-card')].map(card => ({
+        ...bounds(card),
+        honorSize: Number.parseFloat(getComputedStyle(card.querySelector('.award-showcase-card__issuer')).fontSize),
+        borderColor: getComputedStyle(card).borderTopColor,
+      })),
+    };
+  });
+  const [dolsoe, beyondRadius, sorimoa] = hierarchy.cards;
+  assert.equal(beyondRadius.borderColor, dolsoe.borderColor,
+    'the two main awards share the same gold border');
+  assert.notEqual(sorimoa.borderColor, dolsoe.borderColor,
+    'Sorimoa does not use the main awards gold border');
+  const borderChannels = dolsoe.borderColor.match(/[\d.]+/g)?.map(Number) ?? [];
+  assert.ok(borderChannels.length >= 3 && borderChannels[0] > borderChannels[1] &&
+    borderChannels[1] > borderChannels[2] && borderChannels[0] >= 180 &&
+    borderChannels[1] >= 130 && (borderChannels.length < 4 || borderChannels[3] === 1),
+  'main award borders use an opaque gold color');
+  const sorimoaBorderChannels = sorimoa.borderColor.match(/[\d.]+/g)?.map(Number) ?? [];
+  assert.ok(sorimoaBorderChannels.length >= 3 && sorimoaBorderChannels[0] <= sorimoaBorderChannels[1] &&
+    sorimoaBorderChannels[1] <= sorimoaBorderChannels[2],
+  'Sorimoa uses a neutral border instead of a gold outline');
+  assert.ok(sorimoa.honorSize < Math.min(dolsoe.honorSize, beyondRadius.honorSize),
+    'Sorimoa uses a smaller honor heading while retaining its full award card');
+  if (hierarchy.viewport > 760) {
+    assert.ok(dolsoe.x < beyondRadius.x && Math.abs(dolsoe.y - beyondRadius.y) <= 1 &&
+      Math.abs(dolsoe.width - beyondRadius.width) <= 1,
+    'Dolsoe and BeyondRadius are equally sized main awards in the top row');
+    assert.ok(sorimoa.y >= Math.max(dolsoe.bottom, beyondRadius.bottom) - 1 &&
+      sorimoa.width >= hierarchy.grid.width - 2,
+    'Sorimoa occupies a separate full-width lower row');
+    assert.ok(Math.abs(dolsoe.honorSize - beyondRadius.honorSize) <= .1 &&
+      dolsoe.honorSize > sorimoa.honorSize,
+    'the two main awards have equally prominent honor headings');
+  } else {
+    assert.ok(beyondRadius.y >= dolsoe.bottom - 1 && sorimoa.y >= beyondRadius.bottom - 1,
+      'mobile preserves the first, second, and third award order');
+  }
   for (const award of expected) {
     const card = page.locator(`.about-award[data-award="${award.id}"]`);
     const text = (await card.innerText()).replace(/\s+/g, ' ');
     for (const preserved of [award.issuer, award.prize, award.competition, ...award.stats]) {
       assert.ok(text.includes(preserved), `${award.id} retains ${preserved}`);
     }
-    assert.equal(await card.locator(`a[href="${award.report}"]`).count() >= 1, true);
+    if (award.report) assert.equal(await card.locator(`a[href="${award.report}"]`).count() >= 1, true);
     assert.equal(await card.locator(`a[href="${award.service}"]`).count(), 1);
+    if (award.id === 'sorimoa-award') {
+      assert.match(text, /프로그램 소개 자료/);
+      assert.doesNotMatch(text, /교육부장관상/,
+        'Sorimoa is a contest best-prize winner, not an Education Minister award');
+      assert.doesNotMatch(text, /공식 수상 보고/,
+        'the app introduction is not presented as an official award report');
+      assert.doesNotMatch(await card.locator('.award-showcase-card__summary').innerText(), /이창성이|받았습니다/,
+        'Sorimoa keeps the program description without the removed award sentence');
+      const layout = await card.evaluate(node => {
+        const media = node.querySelector('.award-showcase-card__media').getBoundingClientRect();
+        const body = node.querySelector('.award-showcase-card__body').getBoundingClientRect();
+        const bounds = node.getBoundingClientRect();
+        return {
+          viewport: innerWidth, mediaWidth: media.width, mediaHeight: media.height,
+          mediaRight: media.right, mediaBottom: media.bottom,
+          bodyLeft: body.left, bodyTop: body.top,
+          bodyRight: body.right, cardRight: bounds.right,
+          statisticRights: [...node.querySelectorAll('.award-showcase-card__stats dt')]
+            .map(statistic => statistic.getBoundingClientRect().right),
+        };
+      });
+      assert.ok(layout.mediaWidth >= (layout.viewport > 760 ? 300 : 180) && layout.mediaHeight >= 100,
+        'Sorimoa retains a large, readable image instead of the compact thumbnail');
+      assert.ok(layout.mediaRight <= layout.bodyLeft + 1 || layout.mediaBottom <= layout.bodyTop + 1,
+        'Sorimoa media does not overlap its award copy');
+      assert.ok(layout.bodyRight <= layout.cardRight + 1,
+        'Sorimoa award copy stays inside its card');
+      assert.ok(layout.statisticRights.every(right => right <= layout.cardRight + 1),
+        'Sorimoa award statistics stay inside its card');
+    }
     assert.ok(await card.locator('img').count() >= 1, 'each award keeps its supporting image');
     for (const image of await card.locator('img').all()) {
       await image.scrollIntoViewIfNeeded();
@@ -204,6 +292,23 @@ async function verifyDialogKeyboard(page, dialog, opener) {
 }
 
 try {
+  if (process.env.QA_AWARDS_ONLY === '1') {
+    for (const width of [1440, 900, 390, 320]) {
+      const context = await browser.newContext({
+        viewport: { width, height: 900 }, deviceScaleFactor: 1,
+        isMobile: width <= 760, hasTouch: width <= 760,
+      });
+      const page = await context.newPage();
+      watchPage(page, `awards-${width}`);
+      await check(`award priority, labels, links, and layout at ${width}px`, page, async () => {
+        await openRoute(page, '#/about/awards');
+        await verifyAwardEvidence(page);
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+        await screenshot(page, `awards-${width}.png`, true);
+      });
+      await context.close();
+    }
+  } else {
   const desktopContext = await browser.newContext({
     viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1,
   });
@@ -244,7 +349,8 @@ try {
     assert.equal(await enter.getAttribute('href'), '#/about');
     const bounds = await enter.boundingBox();
     assert.ok(bounds && bounds.width >= 180 && bounds.height >= 44);
-    assert.equal(await desktop.locator('.end-sequence .end-brand').count(), 1);
+    assert.equal(await desktop.getByRole('region', { name: '돌 AI연구소 홈페이지로 이동', exact: true }).count(), 1,
+      'the cinematic ending identifies the lab and its homepage destination');
     await screenshot(desktop, 'desktop-intro-end.png');
     await enter.click();
     await waitForRoute(desktop, '#/about');
@@ -320,7 +426,7 @@ try {
     await waitForRoute(desktop, '#/about/awards');
   });
 
-  await check('all-app overview offers three domains without a 23-app wall', desktop, async () => {
+  await check('all-app overview offers three domains without a full app wall', desktop, async () => {
     await openRoute(desktop, '#/apps');
     assert.equal(await desktop.locator('.app-domain-tile[data-area]').count(), 3);
     assert.equal(await desktop.locator('.app-card').count(), 0);
@@ -335,11 +441,12 @@ try {
       const cards = await collectCards(desktop);
       assert.equal(cards.length, area.count);
       assert.ok(cards.every((card) => card.category === area.label));
-      assert.ok(cards.filter((card) => card.id !== 'draconis').every((card) =>
+      assert.ok(cards.filter((card) => !['draconis', 'sorimoa'].includes(card.id)).every((card) =>
         !/담당|조미진|김한일|박동훈|한희나|이창성|이남건|박주현/.test(card.text)),
       'other app cards omit owner names');
       if (area.id === 'student') {
         assert.match(cards.find((card) => card.id === 'draconis')?.text ?? '', /조미진/);
+        assert.match(cards.find((card) => card.id === 'sorimoa')?.text ?? '', /이창성/);
       }
       report.appInventories[area.id] = cards.map(({ id }) => id);
       await verifyExternalLinks(desktop);
@@ -350,7 +457,7 @@ try {
     for (const area of areas) {
       await openRoute(desktop, `#/apps/${area.id}`);
       const images = desktop.locator('.app-feature__image img');
-      assert.equal(await images.count(), area.id === 'admin' ? 2 : 1);
+      assert.equal(await images.count(), area.id === 'safety' ? 1 : 2);
       for (const image of await images.all()) {
         await image.evaluate((node) => node.decode());
         const dimensions = await image.locator('..').boundingBox();
@@ -373,7 +480,7 @@ try {
     await filters.getByRole('button', { name: '교과·프로젝트 학습', exact: false }).click();
     assert.equal(await desktop.locator('.app-card').count(), 4);
     await filters.getByRole('button', { name: '학생생활·학습지원', exact: false }).click();
-    assert.equal(await desktop.locator('.app-card').count(), 6);
+    assert.equal((await collectCards(desktop)).length, 7);
     await filters.getByRole('button', { name: '전체', exact: false }).click();
     const search = desktop.locator('#app-search');
     await search.fill('DRACONIS');
@@ -387,7 +494,26 @@ try {
     assert.ok(await desktop.getByText(/(앱이 없|찾지 못|검색 결과가 없)/).count() > 0);
     await desktop.getByRole('button', { name: '검색 지우기', exact: true }).click();
     assert.equal(await search.inputValue(), '');
-    assert.equal((await collectCards(desktop)).length, 10);
+    assert.equal((await collectCards(desktop)).length, 11);
+  });
+
+  await check('Sorimoa can be found, opened, and traced to its developer and source material', desktop, async () => {
+    await openRoute(desktop, '#/apps/student');
+    const feature = desktop.locator('.app-feature[data-service="sorimoa"]');
+    assert.match(await feature.innerText(), /소리모아/);
+    assert.equal(await feature.locator('a[href="https://sorimoa.pages.dev/"]').count(), 1);
+    await desktop.locator('#app-search').fill('소리모아');
+    const card = desktop.locator('.app-card[data-project="sorimoa"]');
+    assert.equal(await desktop.locator('.app-card').count(), 1);
+    assert.match(await card.innerText(), /개발\s*이창성/);
+    const opener = card.getByRole('button', { name: /자세히 보기/ });
+    await opener.click();
+    const dialog = desktop.locator('dialog.app-dialog');
+    assert.match(await dialog.innerText(), /개발\s*이창성/);
+    assert.equal(await dialog.locator('a[href="https://sorimoa.pages.dev/"]').count(), 1);
+    assert.equal(await dialog.locator('a[href="/assets/lab/sorimoa/program-overview.pptx"]').count(), 1);
+    await verifyExternalLinks(desktop);
+    await verifyDialogKeyboard(desktop, dialog, opener);
   });
 
   await check('Draconis materials stay collapsed until requested and retain their controls', desktop, async () => {
@@ -557,10 +683,10 @@ try {
     await desktop.goBack();
     await waitForRoute(desktop, '#/about');
     const destinations = [
-      { id: 'student', count: 10, route: '#/apps/student' },
+      { id: 'student', count: 11, route: '#/apps/student' },
       { id: 'safety', count: 5, route: '#/apps/safety' },
       { id: 'admin', count: 8, route: '#/apps/admin' },
-      { id: 'awards', count: 2, route: '#/about/awards' },
+      { id: 'awards', count: 3, route: '#/about/awards' },
     ];
     for (const destination of destinations) {
       const link = desktop.locator(`.about-highlights a[data-highlight="${destination.id}"]`);
@@ -586,7 +712,10 @@ try {
         report.responsive.push({ route, ...dimensions });
         assert.ok(dimensions.contentWidth <= dimensions.viewportWidth + 1,
           `${route} overflows at ${width}px`);
-        if (route === '#/about/awards') await screenshot(desktop, `awards-${width}.png`, true);
+        if (route === '#/about/awards') {
+          await verifyAwardEvidence(desktop);
+          await screenshot(desktop, `awards-${width}.png`, true);
+        }
         if (route === '#/about' && width === 900) await screenshot(desktop, 'tablet-static-homepage.png');
       }
     }
@@ -601,14 +730,18 @@ try {
   watchPage(mobile, 'mobile');
   await check('reduced-motion visitors get a static introduction and final entry', mobile, async () => {
     await mobile.goto(baseUrl, { waitUntil: 'domcontentloaded' });
-    await mobile.locator('.intro-site .reduced-world').waitFor();
+    await mobile.locator('.intro-site .mobile-cinematic-static').waitFor();
     const shortcut = mobile.getByRole('link', { name: '홈페이지 바로가기', exact: false });
     const shortcutBounds = await shortcut.boundingBox();
     assert.ok(shortcutBounds && shortcutBounds.height >= 50 && shortcutBounds.x >= 0 && shortcutBounds.x + shortcutBounds.width <= 391);
     assert.ok(await shortcut.evaluate(node => Number.parseFloat(getComputedStyle(node).fontSize)) >= 15);
-    assert.equal(await mobile.locator('.reduced-scene').count(), 5);
-    assert.equal(await mobile.locator('.world-film, .intro-loop, .app-workspace, .about-workspace').count(), 0);
-    const enter = mobile.locator('.reduced-ending--logo').getByRole('link', { name: '홈페이지 들어가기', exact: false });
+    const scenes = mobile.locator('.mobile-cinematic-static__scene');
+    assert.equal(await scenes.count(), 7);
+    assert.equal(await mobile.locator('video, .app-workspace, .about-workspace').count(), 0);
+    const ending = scenes.last();
+    assert.equal(await ending.getByRole('heading', { name: '돌 AI연구소', exact: true }).count(), 1);
+    assert.match(await ending.locator('img').getAttribute('alt'), /돌 AI연구소 DOL AI LAB 로고/);
+    const enter = ending.getByRole('link', { name: '홈페이지 들어가기', exact: false });
     await enter.scrollIntoViewIfNeeded();
     const bounds = await enter.boundingBox();
     assert.ok(bounds && bounds.x >= 0 && bounds.x + bounds.width <= 391 && bounds.height >= 44);
@@ -618,15 +751,32 @@ try {
     await waitForRoute(mobile, '#/about');
   });
 
-  await check('mobile animated introduction and final entry fit the viewport', mobile, async () => {
+  await check('mobile introduction plays immediately without a gesture and keeps its scroll journey', mobile, async () => {
     await mobile.emulateMedia({ reducedMotion: 'no-preference' });
     await openRoute(mobile, '#/intro');
     await mobile.locator('.world-film[data-source-variant="mobile"]').waitFor();
+    await mobile.waitForFunction(() => {
+      const video = document.querySelector('.mobile-cinematic .world-film');
+      return video instanceof HTMLVideoElement && video.readyState >= 2 && !video.paused;
+    }, null, { timeout: 30_000 });
+    const openingTime = await mobile.locator('.world-film').evaluate(video => video.currentTime);
+    await mobile.waitForFunction((previousTime) => {
+      const video = document.querySelector('.mobile-cinematic .world-film');
+      return video instanceof HTMLVideoElement && !video.paused &&
+        Math.abs(video.currentTime - previousTime) > .08;
+    }, openingTime);
+    assert.equal(await mobile.locator('.mobile-opening-welcome').count(), 0,
+      'an opaque welcome poster cannot cover the moving video');
+    assert.equal(await mobile.locator('.world-film').evaluate(video => video.muted && video.playsInline), true,
+      'mobile autoplay remains muted and inline');
+    await screenshot(mobile, 'mobile-autoplay-intro-start.png');
     assert.equal(await mobile.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     await mobile.locator('.intro-main').focus();
     await mobile.keyboard.press('End');
     const enter = mobile.getByRole('link', { name: '홈페이지 들어가기', exact: false });
     await enter.waitFor({ state: 'visible', timeout: 30_000 });
+    assert.equal(await mobile.locator('.world-film').evaluate(video => video.paused), true,
+      'scrolling hands the video back to the paused, seek-driven timeline');
     for (const viewport of [{ width: 390, height: 844 }, { width: 844, height: 390 }]) {
       await mobile.setViewportSize(viewport);
       await mobile.locator('.intro-main').focus();
@@ -741,6 +891,7 @@ try {
     }
   });
   await mobileContext.close();
+  }
 } finally {
   await browser.close();
   report.passed = report.checks.length > 0 && report.checks.every((item) => item.passed) &&

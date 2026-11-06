@@ -21,6 +21,7 @@ export type FeaturedService = {
   url: string;
   actionLabel: string;
   recognition?: string;
+  guideUrl?: string;
 };
 
 export type Award = {
@@ -37,6 +38,7 @@ export type Award = {
   badgeImageAlt?: string;
   stats: Array<{ value: string; label: string }>;
   reportUrl: string;
+  reportLabel?: string;
   serviceUrl: string;
 };
 
@@ -60,6 +62,7 @@ export type Project = {
   stage: '구조 확인' | '확인 전';
   owner?: string;
   ownerNote?: string;
+  usageNote?: string;
   summary: string;
   url: string | null;
   actionLabel: string;
@@ -87,7 +90,7 @@ export const serviceAreas: Array<{
       {
         name: '학생생활·학습지원',
         description:
-          '명상, 다문화 통번역, 앱 나눔뜰, 3D 학교 공간과 드라코니스의 생활·신체활동으로 배움의 일상을 돕습니다.',
+          '소리모아의 맞춤형 한국어 학습, 명상, 다문화 통번역, 앱 나눔뜰, 3D 학교 공간과 드라코니스의 생활·신체활동으로 배움의 일상을 돕습니다.',
       },
     ],
   },
@@ -218,6 +221,21 @@ export const featuredServices: FeaturedService[] = [
     actionLabel: '서비스 체험',
   },
   {
+    id: 'sorimoa',
+    name: '소리모아',
+    area: '학생지원',
+    category: '음운 기반 맞춤형 한국어 학습',
+    summary:
+      '이창성이 개발한 음운 기반 맞춤형 한국어 학습 프로그램입니다. 자음과 모음의 소리에서 출발해 글자 조합, 낱말, 문장 읽기까지 8단계로 학습합니다. 듣고 따라 말하기, 그림 보고 말하기, 동화책 읽기와 게임으로 학생 수준에 맞춰 반복 연습할 수 있습니다.',
+    image: '/assets/lab/sorimoa/learning-stages.jpeg',
+    imageAlt: '소리모아의 자음·모음부터 어려운 받침까지 8단계 성장 계단',
+    imageFit: 'contain',
+    url: 'https://sorimoa.pages.dev/',
+    actionLabel: '소리모아 시작하기',
+    recognition: '개발 이창성 · 제18회 다문화교육 우수사례 공모전 이주배경학생 지도사례 최우수상',
+    guideUrl: '/assets/lab/sorimoa/program-overview.pptx',
+  },
+  {
     id: 'beyond-radius',
     name: '반경너머',
     area: '학교안전',
@@ -265,7 +283,7 @@ export const awards: Award[] = [
     award: '제품·서비스 개발 부문 전국 최우수상 · 법제처장상',
     title: 'AI 학교 사업 계획\n법령 검토 비서,\n돌쇠',
     team: '개발 · 박동훈',
-    recognition: '왕중왕전 진출',
+    recognition: '전국 TOP 10 선정 · 왕중왕전 진출',
     summary:
       '학교 사업계획과 최신 법령을 연결해 준수·누락·위반 가능성과 수정 권고를 제시합니다.',
     image: '/assets/lab/dolsoe-research/dolsoe-page-01.png',
@@ -273,7 +291,7 @@ export const awards: Award[] = [
     stats: [
       { value: '약 400개', label: '초등학교 관련 법령' },
       { value: '10개', label: '검토 분야' },
-      { value: '7,700 → 10', label: '전국 본선 결과' },
+      { value: '7,700 → 10', label: '전국 본선 TOP 10 선정' },
     ],
     reportUrl: 'https://lab-tq11.onrender.com/dolsoe.html',
     serviceUrl: 'https://schoollaw-review-production.up.railway.app/web/',
@@ -300,6 +318,26 @@ export const awards: Award[] = [
     reportUrl: 'https://lab-tq11.onrender.com/bangyeong.html',
     serviceUrl: 'https://park-analysis-web-production.up.railway.app/',
   },
+  {
+    id: 'sorimoa-award',
+    eyebrow: '제18회 다문화교육 우수사례 공모전',
+    award: '공모전 최우수상',
+    title: '소리모아,\n소리에서 시작하는 한글 배움',
+    team: '개발 · 이창성',
+    recognition: '교원 부문 · 이주배경학생 지도사례 최우수상',
+    summary:
+      '교실에서 배운 자음·모음의 원리를 가정의 반복 학습으로 이어가며, 학생 수준에 맞춘 한국어 배움을 돕습니다.',
+    image: '/assets/lab/sorimoa/learning-stages.jpeg',
+    imageAlt: '소리모아 음운 기반 맞춤형 한국어 학습의 8단계 안내',
+    stats: [
+      { value: '8단계', label: '수준별 한국어 학습' },
+      { value: '듣기·말하기', label: '음성 인식으로 반복 연습' },
+      { value: '교실·가정', label: '설치 없이 이어지는 배움' },
+    ],
+    reportUrl: '/assets/lab/sorimoa/program-overview.pptx',
+    reportLabel: '프로그램 소개 자료',
+    serviceUrl: 'https://sorimoa.pages.dev/',
+  },
 ];
 
 export const projects: Project[] = [
@@ -315,6 +353,21 @@ export const projects: Project[] = [
       '교과학습과 석암 히어로·신체활동을 연결하고, 학생 성장과 학교 참여 기록을 함께 살펴보는 개인 맞춤 교수·학습 지원 플랫폼입니다.',
     url: 'https://draconis.up.railway.app/',
     actionLabel: '앱 열기',
+  },
+  {
+    id: 'sorimoa',
+    name: '소리모아',
+    category: '학생지원',
+    subgroup: '학생생활·학습지원',
+    audience: '이주배경학생·한국어 학습자·교사',
+    stage: '구조 확인',
+    owner: '이창성',
+    ownerNote: '개발',
+    usageNote: '음성 인식은 Chrome 브라우저에서 지원됩니다. 학습 기록은 사용 중인 기기에 저장되므로 필요한 기록은 백업해 주세요.',
+    summary:
+      '이창성이 만든 음운 기반 맞춤형 한국어 학습 프로그램입니다. 소리와 글자부터 문장까지 8단계 학습과 말하기·동화책·게임을 제공하며, 이를 활용한 이주배경학생 지도사례로 제18회 다문화교육 우수사례 공모전 최우수상을 받았습니다.',
+    url: 'https://sorimoa.pages.dev/',
+    actionLabel: '소리모아 시작하기',
   },
   {
     id: 'michuhol-city-development',

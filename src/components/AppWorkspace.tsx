@@ -18,6 +18,7 @@ const areaCopy = {
 
 const featuredCopy: Record<string, string> = {
   draconis: '배움을 모험으로, 참여를 성장으로. 교과학습과 학교생활을 연결하는 개인 맞춤 교수·학습 플랫폼입니다.',
+  sorimoa: '자음과 모음의 소리에서 낱말과 문장까지. 듣고, 말하고, 읽고, 놀며 학생 수준에 맞는 한국어 배움을 이어갑니다.',
   'beyond-radius': '직선거리 너머, 아이들이 실제로 걷는 길을 살펴봅니다. 공공데이터로 학교 주변 환경과 도보 접근성을 분석합니다.',
   dolsoe: '학교 사업계획과 관련 법령을 함께 검토합니다. 근거와 수정 권고를 확인하고 교직원이 최종 판단합니다.',
   'seokam-buffet': '교육과정 설계부터 학급 운영까지 이어지는 AI 지원 플랫폼. 교직원 업무의 중심 포털로 확장을 검토합니다.',
@@ -25,6 +26,7 @@ const featuredCopy: Record<string, string> = {
 
 const featuredVisualCopy: Record<string, { label: string; headline: string; caption: string }> = {
   draconis: { label: 'DRACONIS', headline: '배움이 시작되는\n모험의 세계', caption: '나만의 드래곤과 함께 성장하는 학습 모험' },
+  sorimoa: { label: 'SORIMOA', headline: '소리를 모아,\n한글을 깨쳐요', caption: '자음과 모음부터 시작하는 8단계 한국어 학습' },
   'beyond-radius': { label: 'BEYOND THE RADIUS', headline: '아이들이 걷는 길,\n반경 너머까지', caption: '학교 주변 환경과 도보 접근성을 한눈에' },
   dolsoe: { label: 'DOLSOE', headline: '학교의 계획에\n든든한 근거를', caption: '사업계획과 관련 법령을 함께 검토' },
   'seokam-buffet': { label: 'SEOKAM BUFFET', headline: '선생님의 하루를\n하나의 흐름으로', caption: '교육과정 설계부터 교직원 업무까지' },
@@ -73,15 +75,17 @@ function AppDetail({ project, onClose }: { project: Project; onClose: () => void
         <h2 id="app-dialog-title">{project.name}</h2>
         <dl className="app-dialog__meta">
           <div><dt>이용 대상</dt><dd>{project.audience}</dd></div>
-          {project.id === 'draconis' && project.owner && <div><dt>담당</dt><dd>{project.owner}</dd></div>}
+          {project.owner && <div><dt>{project.ownerNote ?? '담당'}</dt><dd>{project.owner}</dd></div>}
         </dl>
         {feature && <img className="app-dialog__image" src={feature.image} alt={feature.imageAlt} />}
         <div className="app-dialog__description">
           {(feature?.summary ?? project.summary).split('\n\n').map(paragraph => <p key={paragraph}>{paragraph}</p>)}
         </div>
+        {feature?.recognition && <p className="app-dialog__recognition">{feature.recognition}</p>}
+        {project.usageNote && <p className="app-dialog__note">{project.usageNote}</p>}
         {project.relatedTo && <p className="app-dialog__relation">{project.relatedTo}</p>}
         {!project.url && <p className="app-dialog__note">구체적인 기능과 연결 주소를 확인한 뒤 안내할 예정입니다.</p>}
-        <div className="app-dialog__actions"><ExternalAction project={project} /><button type="button" className="app-text-button" onClick={onClose}>목록으로 돌아가기</button></div>
+        <div className="app-dialog__actions"><ExternalAction project={project} />{feature?.guideUrl && <a className="app-text-button" href={feature.guideUrl} target="_blank" rel="noopener noreferrer">소개 자료 (PPTX) ↗</a>}<button type="button" className="app-text-button" onClick={onClose}>목록으로 돌아가기</button></div>
       </div>
     </dialog>
   );
@@ -122,7 +126,7 @@ export function AppWorkspace({ area, onNavigate }: AppWorkspaceProps) {
     return projects.filter(project =>
       (!currentArea || project.category === currentArea.name) &&
       (group === '전체' || project.subgroup === group) &&
-      [project.name, project.category, project.subgroup, project.summary, project.audience, project.relatedTo ?? '']
+      [project.name, project.category, project.subgroup, project.summary, project.audience, project.owner ?? '', project.relatedTo ?? '']
         .join(' ').toLocaleLowerCase('ko').replace(/\s+/g, '').includes(normalizedQuery));
   }, [currentArea, group, query]);
 
@@ -165,7 +169,7 @@ export function AppWorkspace({ area, onNavigate }: AppWorkspaceProps) {
         {currentArea && !query.trim() && <>
           <div className={`app-feature-grid${activeFeatures.length > 1 ? ' app-feature-grid--pair' : ''}`}>
             {activeFeatures.map(service => <article className="app-feature" data-service={service.id} key={service.id}>
-              <div className="app-feature__copy"><p className="app-eyebrow">대표 앱 <span aria-hidden="true">/</span> {service.category}</p><p className="app-feature__brand">{featuredVisualCopy[service.id].label}</p><h2>{service.name}</h2><p className="app-feature__headline">{featuredVisualCopy[service.id].headline}</p><p className="app-feature__description">{featuredCopy[service.id]}</p>
+              <div className="app-feature__copy"><p className="app-eyebrow">대표 앱 <span aria-hidden="true">/</span> {service.category}</p><p className="app-feature__brand">{featuredVisualCopy[service.id].label}</p><h2>{service.name}</h2><p className="app-feature__headline">{featuredVisualCopy[service.id].headline}</p><p className="app-feature__description">{featuredCopy[service.id]}</p>{service.recognition && <p className="app-feature__recognition">{service.recognition}</p>}
                 <div className="app-feature__actions"><ExternalAction project={service} />{projects.find(project => project.id === service.id) && <button type="button" className="app-text-button" aria-label={`${service.name} 대표 앱 자세히 보기`} onClick={() => setSelectedProject(projects.find(project => project.id === service.id) ?? null)}>소개 보기</button>}</div>
               </div><div className="app-feature__image"><img src={service.image} alt={service.imageAlt} loading="eager" decoding="async" /><span className="app-feature__image-caption">{featuredVisualCopy[service.id].caption}</span></div>
             </article>)}
@@ -184,7 +188,7 @@ export function AppWorkspace({ area, onNavigate }: AppWorkspaceProps) {
           {visibleProjects.length ? <div className="app-card-grid">{visibleProjects.map((project, index) => <article className="app-card" key={project.id} data-project={project.id} data-category={project.category}>
             <div className="app-card__top"><span className="app-card__number" aria-hidden="true">{String(page * pageSize + index + 1).padStart(2, '0')}</span><span>{area === 'all' ? project.category : project.audience}</span></div>
             <h3>{project.name}</h3><p className="app-card__summary">{project.summary}</p>
-            <div className="app-card__bottom"><span className="app-card__relation">{project.id === 'draconis' && project.owner ? `담당 ${project.owner}` : project.relatedTo ?? (!project.url ? '연결 준비 중' : '')}</span><button type="button" onClick={() => setSelectedProject(project)} aria-label={`${project.name} 자세히 보기`}>자세히 보기 <span aria-hidden="true">↗</span></button></div>
+            <div className="app-card__bottom"><span className="app-card__relation">{project.owner ? `${project.ownerNote ?? '담당'} ${project.owner}` : project.relatedTo ?? (!project.url ? '연결 준비 중' : '')}</span><button type="button" onClick={() => setSelectedProject(project)} aria-label={`${project.name} 자세히 보기`}>자세히 보기 <span aria-hidden="true">↗</span></button></div>
           </article>)}</div> : <div className="app-empty"><h3>조건에 맞는 앱이 없습니다.</h3><p>다른 검색어를 입력하거나 활용 목적을 바꿔보세요.</p><button className="app-text-button" type="button" onClick={() => { setQuery(''); setGroup('전체'); setPage(0); }}>검색 조건 초기화</button></div>}
           {pageCount > 1 && <nav className="app-pagination" aria-label="앱 목록 페이지"><span>{page * pageSize + 1}–{Math.min((page + 1) * pageSize, filteredProjects.length)} / {filteredProjects.length}</span><div><button type="button" aria-label="이전 앱 목록" disabled={page === 0} onClick={() => changePage(page - 1)}>←</button><span>{page + 1} / {pageCount}</span><button type="button" aria-label="다음 앱 목록" disabled={page + 1 >= pageCount} onClick={() => changePage(page + 1)}>→</button></div></nav>}
         </div>}

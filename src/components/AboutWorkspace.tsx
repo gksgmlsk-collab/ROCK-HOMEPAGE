@@ -17,7 +17,7 @@ const aboutTabs: Array<{ section: AboutSection; view: AboutDestination; label: s
 ];
 
 const homeHighlights: Array<{ view: AboutDestination; label: string; count: number; unit: string; caption: string; href: string }> = [
-  { view: 'student', label: '학생지원', count: projects.filter(project => project.category === '학생지원').length, unit: '앱·기능', caption: '드라코니스와 함께하는 배움', href: '#/apps/student' },
+  { view: 'student', label: '학생지원', count: projects.filter(project => project.category === '학생지원').length, unit: '앱·기능', caption: '드라코니스 · 소리모아와 함께하는 배움', href: '#/apps/student' },
   { view: 'safety', label: '학교안전', count: projects.filter(project => project.category === '학교안전').length, unit: '앱', caption: '반경너머에서 시작하는 안심', href: '#/apps/safety' },
   { view: 'admin', label: '학교행정', count: projects.filter(project => project.category === '학교행정').length, unit: '앱', caption: '돌쇠·석암 뷔페가 돕는 학교 업무', href: '#/apps/admin' },
   { view: 'awards', label: '연구소 수상', count: awards.length, unit: '수상', caption: '법제처장상(왕중왕전 진출) · 교육부장관상', href: '#/about/awards' },
