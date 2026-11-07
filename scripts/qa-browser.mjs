@@ -685,7 +685,7 @@ try {
     const destinations = [
       { id: 'student', count: 11, route: '#/apps/student' },
       { id: 'safety', count: 5, route: '#/apps/safety' },
-      { id: 'admin', count: 8, route: '#/apps/admin' },
+      { id: 'admin', count: 9, route: '#/apps/admin' },
       { id: 'awards', count: 3, route: '#/about/awards' },
     ];
     for (const destination of destinations) {
