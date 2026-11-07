@@ -13,7 +13,7 @@ const report = {
 const areas = [
   { id: 'student', label: '학생지원', count: 11 },
   { id: 'safety', label: '학교안전', count: 5 },
-  { id: 'admin', label: '학교행정', count: 8 },
+  { id: 'admin', label: '학교행정', count: 9 },
 ];
 
 await mkdir(outputDirectory, { recursive: true });

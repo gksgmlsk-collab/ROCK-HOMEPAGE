@@ -564,6 +564,19 @@ export const projects: Project[] = [
     actionLabel: '앱 열기',
   },
   {
+    id: 'timetable',
+    name: '학년 시간표 자동 배치',
+    category: '학교행정',
+    subgroup: '함께 연결할 업무 도구',
+    audience: '교직원',
+    stage: '구조 확인',
+    usageNote: '입력한 시간표는 사용하는 브라우저에 저장됩니다. 필요한 시간표는 엑셀로 내려받고, 공용 기기에는 개인정보를 입력하지 마세요.',
+    summary:
+      '3~6학년의 반 수와 과목별 시수를 설정하고 고정 수업과 전담 교사의 가능 시간을 반영해 시간표를 자동 배치합니다. 전담 수업의 반별 중복을 조정하고 결과를 엑셀로 저장할 수 있습니다.',
+    url: 'https://timetable-production-b5f7.up.railway.app/',
+    actionLabel: '시간표 만들기',
+  },
+  {
     id: 'schoolletter',
     name: '다문화 가정통신문 번역 앱',
     category: '학교행정',
